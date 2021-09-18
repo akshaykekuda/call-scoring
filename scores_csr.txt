@@ -1,0 +1,163 @@
+
+Dev evaluation start
+
+Top 5 sentences of actual class=1 predicted class=1
+Okay let me go ahead and run this quote okay i'm here on this quote and then i'll let you in uh were were looking at okay bear with me one moment please. 0.0711505189538002
+Hello hi good morning ah let me just gather your information and then i'll go ahead and run the quote okay can i have your complete name please. 0.06950758397579193
+I am giving you run you know um it's called men this is the closest estimate we do need your vin number to give you an accurate. 0.0672479197382927
+No okay then i'll go ahead and save it in the system for the next thirty days to quote itself it is guaranteed for today only. 0.059038519859313965
+Quote um but this is the closest or you can have an idea you know at at least that what you would be looking at. 0.032850127667188644
+
+Top 5 sentences of actual class=1 predicted class=1
+In our problem i can go ahead and defects shit over the first and then you pull up the information and number went and let them let send that over pay. 0.13634969294071198
+Uh yes sir yes uh yes could dig sixty minutes for your through theater or late than sixty mean it's just the same them okay. 0.13405433297157288
+No problem about my own let you send it over and you said that you like true issue to buy or fox right. 0.13274726271629333
+A peace i just send that over and need to dig ah they didn't sixty minutes for you to receive it okay. 0.13110849261283875
+Okay thank you so much i appreciate that it's a i'm glad that just. 0.042324770241975784
+
+Top 5 sentences of actual class=0 predicted class=0
+Okay first im gonna give you the justice information or you have the this information. 0.16490761935710907
+Okay just gimme let me let me see if shes available right now. 0.16490603983402252
+Has directs he's direct phone number its six one four eight one seven. 0.16471506655216217
+Thank you for comments to insure minutes about how can i help with today. 0.16471287608146667
+Zero four four zero six one four eight one seven zero four four zero. 0.15192821621894836
+
+Top 5 sentences of actual class=1 predicted class=1
+Coverage is effective now billing we will send two notices each month you'll get a bill with a due date first date passes said to cancel noticed cancelled date fall on the twenty eighth. 0.07280725240707397
+If you let it safe auto dot com and signed that isn't a user once you've completed that you'll be able to you. 0.07164308428764343
+Monthly payments for to twenty first thing that includes a ten dollar s r twenty two falling fee and a previous ten dollar balance at two thirty to start and what you do a. 0.07149902731180191
+I always thought that go to the quote process i have your vin number and things i said if that's what your skin. 0.07085782289505005
+Partners that one they offer competitive right so if you're ever interested just give us a call uh what is your occupation. 0.04810020327568054
+
+Top 5 sentences of actual class=0 predicted class=0
+Well the thing where she was that i don't have done information on the notes it just says uh let me see give me a second. 0.1824384480714798
+Perfect so give me a second let me check this um so i can see that this policy could cancel on the twenty second you one. 0.1821552813053131
+Okay so they told you that you have um two today to make that payment right today before midnight. 0.15654256939888
+Okay well let's see right here is that it's already been. 0.028272131457924843
+Foreign she finance here in the next three seconds optimistic offer is this a low erie. 0.026140201836824417
+
+Top 5 sentences of actual class=0 predicted class=0
+All right maam are video when go ahead and say you the does the prob insurance anything else we can do food today. 0.1769322156906128
+And one second to do 'cause my sister on fifteen a bit slow can you please parental your first name. 0.17679300904273987
+Alright thank you for calling them was saying you have a great day maam thank you maam but were. 0.1760917603969574
+Kill ten in ones that didn't let me see if i can put up your policy. 0.17122343182563782
+Thank you and your cliff deem to be sitting your proof of insurance coverage for your rent insurance. 0.04861301928758621
+
+Top 5 sentences of actual class=1 predicted class=1
+Alright so if we reject all those coverages and just quote you with what state requires you to carry to be legal to drive um showing it would be an initial down payment of one eighty four. 0.030585022643208504
+Okay so we're going to base your quote and down payment on the claim driving record no tickets accidents or claims in the last three years as long as that information is accurate than the. 0.030567310750484467
+Alright and then as far as uh drivers go are you going to be the only driver and there is there anyone other than you living in your household that are sixteen or older. 0.030561596155166626
+Relatives living in my household for life isn't damages suffered if injury is caused by the negligence of a driver who does not have insurance or does not have enough insurance to pay for. 0.03050544485449791
+Would you be using that vehicle and the course of your employment to drive to a different jobs sites or go on sales calls or anything like that while you're at work. 0.030479341745376587
+
+Top 5 sentences of actual class=0 predicted class=0
+I'm still working on a good movies that my system is kind of low slowly replay found a brief hold while they do this. 0.11113379895687103
+Okay let me go ahead and checked out for you can give me the policy number that were going to work on these. 0.1109241396188736
+Okay and you don't need it go ahead and send you all do it didn't do i_d car skim memphis second. 0.11084900051355362
+If you don't have it i have give me the last four digits of your social security and your data birth. 0.11038591712713242
+So much okay when i'm going to do uh would you like to be sent it over to mail or email. 0.11019344627857208
+
+Top 5 sentences of actual class=1 predicted class=1
+More than one vehicle on the policy then you could devil your limits from fifteen dirty up to thirty sixty so do you own or just save that to fifteen thirty unstacked 'cause it's not gonna be fifty states. 0.06545481830835342
+Okay now do you own anything like motorcycles a._t._v.s boats are r._v.s you locked quoted you spoil and do you. 0.01740245148539543
+Right if your vehicles been involved in an accident we can put you in rental vehicle for a maximum of thirty days and then reimburse you twenty dollars each day of the rental. 0.01525635551661253
+For sure okay now do you understand what t. o. r. tapes. 0.009921388700604439
+Insurance or i n tort basically is what last you to sue and other party and even of an accident theres to caps. 0.009646146558225155
+
+Top 5 sentences of actual class=0 predicted class=0
+And they've been quiet and run three so they can go ahead and take your payment okay how grade they grab that you are you going to pay with a credit card. 0.11286918073892593
+The car and so um whenever you are ready to you we can go you can go ahead and cut us uh we can go ahead and make that payment okay. 0.1128070056438446
+No say been declining i already said to cancel sawyer the buy target again is gonna blocks so whereas it just for you to do is call it. 0.11194846034049988
+Go ahead and cut it back into that um that you try to ah make a payment and two times and they declined. 0.04371824860572815
+So you're trying to make a payment okay well what do you still need to be on the um. 0.020725620910525322
+
+Top 5 sentences of actual class=1 predicted class=1
+Oh okay alright well already ten men uh send the documents for you um if you have the fax number to send it to the b_n_b or if you wanna for what. 0.11906822770833969
+Yeah well i don't send sending information i can say or by email so you can print the documents i have a couple of weeks you. 0.11872236430644989
+Right and your will receive sip it right now i got this email address read that angle five five four i g dot com. 0.09113459289073944
+Um let me say the same information as well be a regular you with man but it's gonna take. 0.0427769273519516
+Oh okay well you're all set dan and to maintain like very much because if i say how wonderful. 0.023420384153723717
+
+Top 5 sentences of actual class=0 predicted class=0
+I'm i'm going to be honest with you and me sabrina even even all still up in the system to to work and start policies some sites they give us a lot of trouble believe me. 0.0982818678021431
+And it's uh it's nothing it's working well let me go ahead and take a look on the policy do you have a a policy they give you the number to give you. 0.09823475033044815
+Oh burt for all this since every time that you call for ah any information that that that to verify that we are in the wreck policy this is that we better to fight it okay a s. 0.09816154837608337
+Uh all the time that you were trying to sell going it's gonna to you with the some uh some of these issues n._b._a.. 0.0949716717004776
+Uh yes i mean it's gonna be its going to be. 0.01645164005458355
+
+Top 5 sentences of actual class=1 predicted class=1
+Alright man um so what do you teach that we can't reach a secondary number memories air primary number that we can read that we can reach you. 0.028246335685253143
+Ah destruction and is part of the questions if there's a question that you know the answer to feel free to just telling me on on the. 0.02824537828564644
+In that we have a number for the claims department if she wants to give us a call and are getting gifford information undecided suffered claim a phone number. 0.02822832763195038
+Emily e. m. i. l. y. hundred h h u. n. t. and uh whats your phone number michigan. 0.028196070343255997
+You would you like to start one you said some of the six correct that are on what time to this accident occurred man. 0.028155267238616943
+
+Top 5 sentences of actual class=1 predicted class=1
+I can't even think about fishing the wedding the late show the amount to be paid for a p._d._f. to covering the rest of your policy east two hundred and twenty two daughters d's is gonna be covering your until july the third. 0.1656796932220459
+There's this uh six dollars fee for making payment with the card so the amount were going to be charging east two hundred and twenty eight dollars to these. 0.022972198203206062
+What sure. 0.022873297333717346
+Did you like to make a payment go the cars are with a check. 0.022719256579875946
+Huh okay just remember that. 0.02262197993695736
+
+Top 5 sentences of actual class=1 predicted class=1
+Okay thank you very much for it and do you have to go to the number to call me want to add up to the post. 0.27230146527290344
+Contruction definitely give you a quilt friend that may have your last for social your data birth to pull up your policy. 0.24046747386455536
+Okay thank you very much let me go ahead and chicken at forty. 0.03936076536774635
+Yes. 0.03840191662311554
+That may have your sports showing a bit of birth to pull up your apartments. 0.03781237080693245
+
+Top 5 sentences of actual class=1 predicted class=1
+Oh you're right i'm sorry i was looking at the no i'm sorry i was looking at the grown over thank you. 0.09256152808666229
+An s are twenty six and then that'd be sent to the state and she's just like a notice of cancellation uh thats get engaged in the states. 0.09251464158296585
+Uh visible because of his change you have speak with because of the change you get a craving for forty six dollars right now the buses. 0.08770376443862915
+Yeah and a pool yes no no problem with that a bull so we just gonna leave the chain you the driver a sick okay. 0.08061914145946503
+Yes it people that is it the multi payment up and let me go ahead and save the cheese uh. 0.05978879705071449
+
+Top 5 sentences of actual class=1 predicted class=1
+Got a message we do need to enter drivers license and social what i can do is save your quote do you want to call us back with that information so can give you a quote. 0.08020174503326416
+Okay okay well keep in mind a quote is not accurate until we enter that information and do you have any tickets accidents or violations in the last three years and your motor vehicle reports. 0.08013060688972473
+Okay well keep in mind for rent or it's in the future we do offer compare pricing and are there any other members in your household fifteen years or older. 0.07755198329687119
+Okay we can save your uh quote keep in mind that quoted valid for only one day but you're in for. 0.015585239045321941
+Same phone number anyone can assist you where's your twenty four seven as soon as we process you payment we can email. 0.01166594959795475
+
+Top 5 sentences of actual class=0 predicted class=0
+Yeah you're just do and have you're still you're still. 0.14713343977928162
+Thank you for just angry i assist you and you are on the recording right. 0.1470969170331955
+Um nice not a policy number men apart as you never really started to way to letters. 0.146993026137352
+Ended up those lucky it's neat man so you see the policy number. 0.14557480812072754
+And shane um that's one of those same love policy number and. 0.10958465933799744
+
+Top 5 sentences of actual class=1 predicted class=1
+Ah that is correct ah because uh the due day we'll start on february day lebanon and the policy cancellation dates going to be on february the twenty seven so in some words you have the range. 0.07015736401081085
+Thank you very much ma'am okay we'll just to be sure that i'm on the policy could you quote me with your address and then whats your phone number please. 0.07015461474657059
+Nice to meet you may as well as okay member so let me pull up your policy and then i will provide you their body information okay give me just a second place. 0.07002455741167068
+To another was a little bit ago were just looking to mail and i just wanted like rent rent okay what kind it was kind of coverages are married release coverage on this topic yes. 0.06986197829246521
+For me to make that payment all the seven hundred and eighty six dollars after d statement dream only righty it's going to be a six hundred and thirty eight. 0.06895224004983902
+
+Top 5 sentences of actual class=1 predicted class=1
+Okay that is correct looking into the policy your deal and it's gonna be one hundred and three dollars a you pay with a credit card with a check. 0.19333110749721527
+They didn't want sixty three that is correct uh let me go ahead and process you multiple you for one oh three. 0.18586204946041107
+Can oh okay what did you say it was it that for you so strong i'm sorry. 0.037561770528554916
+Okay a unix them your next bill is no gonna be two on two three where the twenty third before midnight. 0.027417851611971855
+Ok i'm more enough to assist you um can you provide me with the last four his social. 0.027403511106967926
+
+Top 5 sentences of actual class=1 predicted class=1
+Okay can you keep in mind would it the prob i insurance for money cyclists in boats i hope you have a community. 0.1298067420721054
+To keep the next question me i have your date of birth and the last four okay she'll. 0.12894666194915771
+How long thing for calling safe i were my name is if he can i help you. 0.12778843939304352
+Okay i i so i'm gonna send that right now to me one chicken. 0.12551432847976685
+They weren't they say that i said since fixed think it's. 0.081712506711483
+
+Top 5 sentences of actual class=0 predicted class=0
+Can what uh what do you want chin over an i_d card or a declaration page now i guess it has to be a certificate. 0.07462361454963684
+Okay is there anything l a oh i told you the the difference one nine shave was there anything else that today today. 0.07453898340463638
+Okay well rental protection is if you uh have an accident in the in the cars you know shop you have no transportation. 0.07444506883621216
+Ok show he jumping yeah to have at least to five hundred dollar deductible you want the talent and rental coverage. 0.07301197201013565
+Its a dollar for the towing again is three dollars for the rental so do you want it or not. 0.06341925263404846
+
+Top 5 sentences of actual class=1 predicted class=1
+Uh um we don't get a cold you and these timeframe maximum of forty eight business i was just called the phone number you out to talk to me to with the claim and we can give you an update on this type of. 0.04156985506415367
+He actually prefer the adjuster to let you know where to fax it because the if no we're going to receive it in the sunday get fax and i don't know how long you're going to. 0.04156966134905815
+Ok if you give me yours two minutes from the line let me just get the claim number on i'm trying to get a adjuster for you is just from that but they give. 0.040909335017204285
+Yeah did you can prevent if you want you're we kept it that's a problem okay let's start with the uh whats that you have the accident happened. 0.03951529040932655
+Kevin or the record the action maam okay thank you do you know day let's go out of the vehicle to you've represent kind of have to license plate number please. 0.020443255081772804

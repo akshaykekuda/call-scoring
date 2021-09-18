@@ -1,0 +1,23 @@
+Dataframe creation done
+training and dev sample size = 96
+test sample size = 1242
+0 category count=9
+tensor([], size=(1, 0))
+tensor([], size=(1, 0))
+Average loss at epoch 1: 0.21764438324852994
+tensor([], size=(1, 0))
+Average loss at epoch 2: 0.5805083350523522
+tensor([], size=(1, 0))
+Average loss at epoch 3: 0.40005886672358765
+tensor([], size=(1, 0))
+Average loss at epoch 4: 0.08136102361114401
+tensor([], size=(1, 0))
+Average loss at epoch 5: 0.3420708161827765
+tensor([], size=(1, 0))
+Average loss at epoch 6: 0.5935295167330065
+tensor([], size=(1, 0))
+Average loss at epoch 7: 0.20792459500463387
+tensor([], size=(1, 0))
+Average loss at epoch 8: 0.3178549173631166
+tensor([], size=(1, 0))
+Average loss at epoch 9: 0.17541240430191943

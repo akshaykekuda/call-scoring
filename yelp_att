@@ -1,0 +1,10 @@
+#!/bin/bash
+
+#PBS -l walltime=10:00:00
+#PBS -l mem=64GB
+#PBS -A PAS0536
+
+touch log_yelp_att.out
+python vocab_embeddings_batched.py > log_yelp_att.out
+
+

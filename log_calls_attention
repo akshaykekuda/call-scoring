@@ -1,0 +1,364 @@
+Dataframe creation done
+training and dev sample size = 242
+test sample size = 1286
+Average loss at epoch 0: 0.7387751706832432
+Accuracy: 0.5544041450777202 F1: 0.48192771084337344
+Average accuracy at epoch 0: 0.5544041450777202
+Average loss at epoch 1: 0.7073173993146481
+Accuracy: 0.5803108808290155 F1: 0.7326732673267327
+Average accuracy at epoch 1: 0.5803108808290155
+Average loss at epoch 2: 0.6955220917809195
+Accuracy: 0.5803108808290155 F1: 0.7326732673267327
+Average accuracy at epoch 2: 0.5803108808290155
+Average loss at epoch 3: 0.7125315016878702
+Accuracy: 0.5906735751295337 F1: 0.734006734006734
+Average accuracy at epoch 3: 0.5906735751295337
+Average loss at epoch 4: 0.6896567279810732
+Accuracy: 0.5803108808290155 F1: 0.7326732673267327
+Average accuracy at epoch 4: 0.5803108808290155
+Average loss at epoch 5: 0.6955402157621681
+Accuracy: 0.5958549222797928 F1: 0.74
+Average accuracy at epoch 5: 0.5958549222797928
+Average loss at epoch 6: 0.6373904835374862
+Accuracy: 0.7927461139896373 F1: 0.84
+Average accuracy at epoch 6: 0.7927461139896373
+Average loss at epoch 7: 0.521774183283198
+Accuracy: 0.7668393782383419 F1: 0.7540983606557377
+Average accuracy at epoch 7: 0.7668393782383419
+Average loss at epoch 8: 0.33551304328009257
+Accuracy: 0.9689119170984456 F1: 0.9732142857142857
+Average accuracy at epoch 8: 0.9689119170984456
+Average loss at epoch 9: 0.2238722192654338
+Accuracy: 0.9844559585492227 F1: 0.9865470852017937
+Average accuracy at epoch 9: 0.9844559585492227
+Average loss at epoch 10: 0.18108605705394645
+Accuracy: 0.9896373056994818 F1: 0.9910714285714286
+Average accuracy at epoch 10: 0.9896373056994818
+Average loss at epoch 11: 0.1608150919484351
+Accuracy: 0.9896373056994818 F1: 0.9910714285714286
+Average accuracy at epoch 11: 0.9896373056994818
+Average loss at epoch 12: 0.15430039507119767
+Accuracy: 1.0 F1: 1.0
+Average accuracy at epoch 12: 1.0
+Average loss at epoch 13: 0.1329542057193005
+Accuracy: 1.0 F1: 1.0
+Average accuracy at epoch 13: 1.0
+Average loss at epoch 14: 0.1311060881985284
+Accuracy: 1.0 F1: 1.0
+Average accuracy at epoch 14: 1.0
+Average loss at epoch 15: 0.13154264512457378
+Accuracy: 1.0 F1: 1.0
+Average accuracy at epoch 15: 1.0
+Average loss at epoch 16: 0.12990307244303312
+Accuracy: 1.0 F1: 1.0
+Average accuracy at epoch 16: 1.0
+Average loss at epoch 17: 0.1288340370426524
+Accuracy: 1.0 F1: 1.0
+Average accuracy at epoch 17: 1.0
+Average loss at epoch 18: 0.128874099625207
+Accuracy: 1.0 F1: 1.0
+Average accuracy at epoch 18: 1.0
+Average loss at epoch 19: 0.12840175729032624
+Accuracy: 1.0 F1: 1.0
+Average accuracy at epoch 19: 1.0
+Accuracy: 0.4897959183673469 F1: 0.28571428571428575
+Dev accuracy for Call Transcripts dataset is 0.4897959183673469
+Dev F1 for Call Transcripts dataset is 0.28571428571428575
+              precision    recall  f1-score   support
+
+           0       0.79      0.49      0.60        39
+           1       0.20      0.50      0.29        10
+
+    accuracy                           0.49        49
+   macro avg       0.50      0.49      0.44        49
+weighted avg       0.67      0.49      0.54        49
+
+Average loss at epoch 0: 0.7391200354371046
+Accuracy: 0.48704663212435234 F1: 0.0
+Average accuracy at epoch 0: 0.48704663212435234
+Average loss at epoch 1: 0.7232287184098841
+Accuracy: 0.6269430051813472 F1: 0.6697247706422018
+Average accuracy at epoch 1: 0.6269430051813472
+Average loss at epoch 2: 0.7012474518365811
+Accuracy: 0.5544041450777202 F1: 0.6950354609929079
+Average accuracy at epoch 2: 0.5544041450777202
+Average loss at epoch 3: 0.70423754787198
+Accuracy: 0.5751295336787565 F1: 0.7050359712230214
+Average accuracy at epoch 3: 0.5751295336787565
+Average loss at epoch 4: 0.6896959971733044
+Accuracy: 0.6321243523316062 F1: 0.5748502994011976
+Average accuracy at epoch 4: 0.6321243523316062
+Average loss at epoch 5: 0.6622968817158684
+Accuracy: 0.5595854922279793 F1: 0.6996466431095405
+Average accuracy at epoch 5: 0.5595854922279793
+Average loss at epoch 6: 0.6603876305985327
+Accuracy: 0.7875647668393783 F1: 0.8240343347639485
+Average accuracy at epoch 6: 0.7875647668393783
+Average loss at epoch 7: 0.5533763960081061
+Accuracy: 0.8808290155440415 F1: 0.8878048780487805
+Average accuracy at epoch 7: 0.8808290155440415
+Average loss at epoch 8: 0.37084474426168235
+Accuracy: 0.9430051813471503 F1: 0.9447236180904524
+Average accuracy at epoch 8: 0.9430051813471503
+Average loss at epoch 9: 0.28136918481458656
+Accuracy: 0.9533678756476683 F1: 0.9543147208121828
+Average accuracy at epoch 9: 0.9533678756476683
+Average loss at epoch 10: 0.21510533324486233
+Accuracy: 0.9792746113989638 F1: 0.9795918367346939
+Average accuracy at epoch 10: 0.9792746113989638
+Average loss at epoch 11: 0.18262439966201782
+Accuracy: 0.9844559585492227 F1: 0.9847715736040609
+Average accuracy at epoch 11: 0.9844559585492227
+Average loss at epoch 12: 0.1682717522963341
+Accuracy: 0.9896373056994818 F1: 0.98989898989899
+Average accuracy at epoch 12: 0.9896373056994818
+Average loss at epoch 13: 0.15199416142362387
+Accuracy: 0.9896373056994818 F1: 0.98989898989899
+Average accuracy at epoch 13: 0.9896373056994818
+Average loss at epoch 14: 0.1517567595206394
+Accuracy: 0.9896373056994818 F1: 0.98989898989899
+Average accuracy at epoch 14: 0.9896373056994818
+Average loss at epoch 15: 0.15145951880074535
+Accuracy: 0.9896373056994818 F1: 0.98989898989899
+Average accuracy at epoch 15: 0.9896373056994818
+Average loss at epoch 16: 0.15496547651414427
+Accuracy: 0.9948186528497409 F1: 0.9949748743718593
+Average accuracy at epoch 16: 0.9948186528497409
+Average loss at epoch 17: 0.13989038518364566
+Accuracy: 0.9948186528497409 F1: 0.9949748743718593
+Average accuracy at epoch 17: 0.9948186528497409
+Average loss at epoch 18: 0.1395513768949657
+Accuracy: 0.9948186528497409 F1: 0.9949748743718593
+Average accuracy at epoch 18: 0.9948186528497409
+Average loss at epoch 19: 0.13906868566503178
+Accuracy: 0.9948186528497409 F1: 0.9949748743718593
+Average accuracy at epoch 19: 0.9948186528497409
+Accuracy: 0.7142857142857143 F1: 0.7083333333333333
+Dev accuracy for Call Transcripts dataset is 0.7142857142857143
+Dev F1 for Call Transcripts dataset is 0.7083333333333333
+              precision    recall  f1-score   support
+
+           0       0.78      0.67      0.72        27
+           1       0.65      0.77      0.71        22
+
+    accuracy                           0.71        49
+   macro avg       0.72      0.72      0.71        49
+weighted avg       0.72      0.71      0.71        49
+
+Average loss at epoch 0: 0.7385411387712685
+Accuracy: 0.4329896907216495 F1: 0.60431654676259
+Average accuracy at epoch 0: 0.4329896907216495
+Average loss at epoch 1: 0.7122382254330153
+Accuracy: 0.5670103092783505 F1: 0.0
+Average accuracy at epoch 1: 0.5670103092783505
+Average loss at epoch 2: 0.7015105278528843
+Accuracy: 0.5670103092783505 F1: 0.0
+Average accuracy at epoch 2: 0.5670103092783505
+Average loss at epoch 3: 0.6776801144185755
+Accuracy: 0.5670103092783505 F1: 0.0
+Average accuracy at epoch 3: 0.5670103092783505
+Average loss at epoch 4: 0.6743455181263157
+Accuracy: 0.5670103092783505 F1: 0.0
+Average accuracy at epoch 4: 0.5670103092783505
+Average loss at epoch 5: 0.6543095317698017
+Accuracy: 0.5670103092783505 F1: 0.0
+Average accuracy at epoch 5: 0.5670103092783505
+Average loss at epoch 6: 0.6038267125481183
+Accuracy: 0.6701030927835051 F1: 0.7217391304347827
+Average accuracy at epoch 6: 0.6701030927835051
+Average loss at epoch 7: 0.4450517499569765
+Accuracy: 0.9020618556701031 F1: 0.8774193548387098
+Average accuracy at epoch 7: 0.9020618556701031
+Average loss at epoch 8: 0.29093331958829743
+Accuracy: 0.9690721649484536 F1: 0.963855421686747
+Average accuracy at epoch 8: 0.9690721649484536
+Average loss at epoch 9: 0.22855582725755946
+Accuracy: 0.9639175257731959 F1: 0.9575757575757574
+Average accuracy at epoch 9: 0.9639175257731959
+Average loss at epoch 10: 0.2083637046906137
+Accuracy: 0.9742268041237113 F1: 0.9696969696969696
+Average accuracy at epoch 10: 0.9742268041237113
+Average loss at epoch 11: 0.176421670569587
+Accuracy: 0.9948453608247423 F1: 0.9940119760479043
+Average accuracy at epoch 11: 0.9948453608247423
+Average loss at epoch 12: 0.16554380169848806
+Accuracy: 0.9948453608247423 F1: 0.9940119760479043
+Average accuracy at epoch 12: 0.9948453608247423
+Average loss at epoch 13: 0.14265210166112663
+Accuracy: 0.9948453608247423 F1: 0.9940119760479043
+Average accuracy at epoch 13: 0.9948453608247423
+Average loss at epoch 14: 0.14176696177917658
+Accuracy: 0.9948453608247423 F1: 0.9940119760479043
+Average accuracy at epoch 14: 0.9948453608247423
+Average loss at epoch 15: 0.1407041000490336
+Accuracy: 0.9948453608247423 F1: 0.9940119760479043
+Average accuracy at epoch 15: 0.9948453608247423
+Average loss at epoch 16: 0.1396436960887663
+Accuracy: 0.9948453608247423 F1: 0.9940119760479043
+Average accuracy at epoch 16: 0.9948453608247423
+Average loss at epoch 17: 0.14026542407335693
+Accuracy: 0.9948453608247423 F1: 0.9940119760479043
+Average accuracy at epoch 17: 0.9948453608247423
+Average loss at epoch 18: 0.1398010203979679
+Accuracy: 0.9948453608247423 F1: 0.9940119760479043
+Average accuracy at epoch 18: 0.9948453608247423
+Average loss at epoch 19: 0.13813811333216341
+Accuracy: 0.9948453608247423 F1: 0.9940119760479043
+Average accuracy at epoch 19: 0.9948453608247423
+Accuracy: 0.5208333333333334 F1: 0.6101694915254238
+Dev accuracy for Call Transcripts dataset is 0.5208333333333334
+Dev F1 for Call Transcripts dataset is 0.6101694915254238
+              precision    recall  f1-score   support
+
+           0       0.27      0.64      0.38        11
+           1       0.82      0.49      0.61        37
+
+    accuracy                           0.52        48
+   macro avg       0.54      0.56      0.49        48
+weighted avg       0.69      0.52      0.56        48
+
+Average loss at epoch 0: 0.7080970032467055
+Accuracy: 0.6134020618556701 F1: 0.0
+Average accuracy at epoch 0: 0.6134020618556701
+Average loss at epoch 1: 0.6707723696053642
+Accuracy: 0.6134020618556701 F1: 0.0
+Average accuracy at epoch 1: 0.6134020618556701
+Average loss at epoch 2: 0.6928492714602923
+Accuracy: 0.6134020618556701 F1: 0.0
+Average accuracy at epoch 2: 0.6134020618556701
+Average loss at epoch 3: 0.699524827839173
+Accuracy: 0.6134020618556701 F1: 0.0
+Average accuracy at epoch 3: 0.6134020618556701
+Average loss at epoch 4: 0.6470222715864477
+Accuracy: 0.6134020618556701 F1: 0.0
+Average accuracy at epoch 4: 0.6134020618556701
+Average loss at epoch 5: 0.6476988364587125
+Accuracy: 0.6185567010309279 F1: 0.0975609756097561
+Average accuracy at epoch 5: 0.6185567010309279
+Average loss at epoch 6: 0.6139484572502756
+Accuracy: 0.7010309278350515 F1: 0.42
+Average accuracy at epoch 6: 0.7010309278350515
+Average loss at epoch 7: 0.5060602102390269
+Accuracy: 0.8556701030927835 F1: 0.7910447761194029
+Average accuracy at epoch 7: 0.8556701030927835
+Average loss at epoch 8: 0.34700917667642084
+Accuracy: 0.9587628865979382 F1: 0.9473684210526316
+Average accuracy at epoch 8: 0.9587628865979382
+Average loss at epoch 9: 0.24374083844349556
+Accuracy: 0.9484536082474226 F1: 0.9295774647887323
+Average accuracy at epoch 9: 0.9484536082474226
+Average loss at epoch 10: 0.22260129175235316
+Accuracy: 0.9381443298969072 F1: 0.9142857142857143
+Average accuracy at epoch 10: 0.9381443298969072
+Average loss at epoch 11: 0.24131578084119817
+Accuracy: 0.9845360824742269 F1: 0.9801324503311258
+Average accuracy at epoch 11: 0.9845360824742269
+Average loss at epoch 12: 0.1731874036420252
+Accuracy: 0.9845360824742269 F1: 0.9801324503311258
+Average accuracy at epoch 12: 0.9845360824742269
+Average loss at epoch 13: 0.16219879901900733
+Accuracy: 0.9896907216494846 F1: 0.9866666666666668
+Average accuracy at epoch 13: 0.9896907216494846
+Average loss at epoch 14: 0.15097503394810194
+Accuracy: 0.9896907216494846 F1: 0.9866666666666668
+Average accuracy at epoch 14: 0.9896907216494846
+Average loss at epoch 15: 0.1503192878414675
+Accuracy: 0.9948453608247423 F1: 0.9933774834437086
+Average accuracy at epoch 15: 0.9948453608247423
+Average loss at epoch 16: 0.14146522624590963
+Accuracy: 0.9948453608247423 F1: 0.9933774834437086
+Average accuracy at epoch 16: 0.9948453608247423
+Average loss at epoch 17: 0.1407756598800728
+Accuracy: 0.9948453608247423 F1: 0.9933774834437086
+Average accuracy at epoch 17: 0.9948453608247423
+Average loss at epoch 18: 0.13997941364332572
+Accuracy: 0.9948453608247423 F1: 0.9933774834437086
+Average accuracy at epoch 18: 0.9948453608247423
+Average loss at epoch 19: 0.13837960585183703
+Accuracy: 0.9948453608247423 F1: 0.9933774834437086
+Average accuracy at epoch 19: 0.9948453608247423
+Accuracy: 0.6041666666666666 F1: 0.7532467532467533
+Dev accuracy for Call Transcripts dataset is 0.6041666666666666
+Dev F1 for Call Transcripts dataset is 0.7532467532467533
+              precision    recall  f1-score   support
+
+           0       0.00      0.00      0.00         2
+           1       0.94      0.63      0.75        46
+
+    accuracy                           0.60        48
+   macro avg       0.47      0.32      0.38        48
+weighted avg       0.90      0.60      0.72        48
+
+Average loss at epoch 0: 0.7138884532236561
+Accuracy: 0.5927835051546392 F1: 0.744336569579288
+Average accuracy at epoch 0: 0.5927835051546392
+Average loss at epoch 1: 0.7014443085519309
+Accuracy: 0.6082474226804123 F1: 0.7516339869281046
+Average accuracy at epoch 1: 0.6082474226804123
+Average loss at epoch 2: 0.6543369501368287
+Accuracy: 0.6391752577319587 F1: 0.7619047619047621
+Average accuracy at epoch 2: 0.6391752577319587
+Average loss at epoch 3: 0.6737421267886752
+Accuracy: 0.6958762886597938 F1: 0.7854545454545454
+Average accuracy at epoch 3: 0.6958762886597938
+Average loss at epoch 4: 0.5708336535188341
+Accuracy: 0.7783505154639175 F1: 0.8401486988847584
+Average accuracy at epoch 4: 0.7783505154639175
+Average loss at epoch 5: 0.47978318305974155
+Accuracy: 0.9226804123711341 F1: 0.9361702127659574
+Average accuracy at epoch 5: 0.9226804123711341
+Average loss at epoch 6: 0.34505329480797975
+Accuracy: 0.9587628865979382 F1: 0.9652173913043478
+Average accuracy at epoch 6: 0.9587628865979382
+Average loss at epoch 7: 0.2382383734448669
+Accuracy: 0.8865979381443299 F1: 0.8952380952380952
+Average accuracy at epoch 7: 0.8865979381443299
+Average loss at epoch 8: 0.18768441515792275
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 8: 0.9896907216494846
+Average loss at epoch 9: 0.1609763778054837
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 9: 0.9896907216494846
+Average loss at epoch 10: 0.1548704971204099
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 10: 0.9896907216494846
+Average loss at epoch 11: 0.1517898680008564
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 11: 0.9896907216494846
+Average loss at epoch 12: 0.14997609466621556
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 12: 0.9896907216494846
+Average loss at epoch 13: 0.15010307084039315
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 13: 0.9896907216494846
+Average loss at epoch 14: 0.15029271123642773
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 14: 0.9896907216494846
+Average loss at epoch 15: 0.1491465696047262
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 15: 0.9896907216494846
+Average loss at epoch 16: 0.14870051586443617
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 16: 0.9896907216494846
+Average loss at epoch 17: 0.14901557871975848
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 17: 0.9896907216494846
+Average loss at epoch 18: 0.1494919779835288
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 18: 0.9896907216494846
+Average loss at epoch 19: 0.14890806269399898
+Accuracy: 0.9896907216494846 F1: 0.991304347826087
+Average accuracy at epoch 19: 0.9896907216494846
+Accuracy: 0.5625 F1: 0.27586206896551724
+Dev accuracy for Call Transcripts dataset is 0.5625
+Dev F1 for Call Transcripts dataset is 0.27586206896551724
+              precision    recall  f1-score   support
+
+           0       0.92      0.55      0.69        42
+           1       0.17      0.67      0.28         6
+
+    accuracy                           0.56        48
+   macro avg       0.55      0.61      0.48        48
+weighted avg       0.83      0.56      0.64        48
+
+Overall accuracy=0.5783163265306122 Overall F1 score=0.5266651865570627

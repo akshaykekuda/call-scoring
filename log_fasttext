@@ -1,0 +1,6 @@
+Dataframe creation done
+training and dev sample size = 1394
+test sample size = 2024
+Average loss at epoch 0: 0.572215780894333
+Accuracy: 0.8031542056074766 F1: 0.8916990920881971
+Average accuracy at epoch 0: 0.8031542056074766

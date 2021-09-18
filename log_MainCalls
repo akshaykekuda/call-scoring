@@ -1,0 +1,234 @@
+Dataframe creation done
+                      WorkgroupQueue  ... Processes
+InteractionIdKey                      ...          
+200150958280210308  Customer Service  ...  4.000000
+200150958280210308  Customer Service  ...  0.000000
+
+[2 rows x 14 columns]
+                      WorkgroupQueue  ... Processes
+InteractionIdKey                      ...          
+300159250540210324  Customer Service  ...  4.000000
+300159250540210324  Customer Service  ...  0.000000
+
+[2 rows x 14 columns]
+                      WorkgroupQueue  ... Processes
+InteractionIdKey                      ...          
+100186623350210410  Customer Service  ...  5.000000
+100186623350210410  Customer Service  ...  5.000000
+100186623350210410  Customer Service  ...  2.000000
+100186623350210410  Customer Service  ...  0.000000
+100186623350210410  Customer Service  ...  0.000000
+
+[5 rows x 14 columns]
+                      WorkgroupQueue  ... Processes
+InteractionIdKey                      ...          
+100191155460210227  Customer Service  ...  5.000000
+100191155460210227  Customer Service  ...  5.000000
+100191155460210227  Customer Service  ...  2.000000
+100191155460210227  Customer Service  ...  0.000000
+100191155460210227  Customer Service  ...  0.000000
+
+[5 rows x 14 columns]
+                      WorkgroupQueue  ... Processes
+InteractionIdKey                      ...          
+200103230350210413  Customer Service  ...  5.000000
+200103230350210413  Customer Service  ...  5.000000
+200103230350210413  Customer Service  ...  2.000000
+200103230350210413  Customer Service  ...  0.000000
+200103230350210413  Customer Service  ...  0.000000
+
+[5 rows x 14 columns]
+                   WorkgroupQueue  ... Processes
+InteractionIdKey                   ...          
+200105363440210109          Sales  ...  5.000000
+200105363440210109          Sales  ...  1.000000
+200105363440210109          Sales  ...  5.000000
+200105363440210109          Sales  ...  4.000000
+200105363440210109          Sales  ...  5.000000
+200105363440210109          Sales  ...  5.000000
+200105363440210109          Sales  ...  3.000000
+200105363440210109          Sales  ...  0.000000
+
+[8 rows x 14 columns]
+                   WorkgroupQueue  ... Processes
+InteractionIdKey                   ...          
+100197453360210301          Sales  ...  5.000000
+100197453360210301          Sales  ...  2.000000
+100197453360210301          Sales  ...  4.000000
+100197453360210301          Sales  ...  1.000000
+100197453360210301          Sales  ...  5.000000
+100197453360210301          Sales  ...  3.000000
+100197453360210301          Sales  ...  0.000000
+
+[7 rows x 14 columns]
+                      WorkgroupQueue  ... Processes
+InteractionIdKey                      ...          
+200112845540210111  Customer Service  ...  5.000000
+200112845540210111  Customer Service  ...  0.000000
+200112845540210111  Customer Service  ...  4.000000
+200112845540210111  Customer Service  ...  0.000000
+200112845540210111  Customer Service  ...  3.000000
+200112845540210111  Customer Service  ...  0.000000
+
+[6 rows x 14 columns]
+                   WorkgroupQueue  ... Processes
+InteractionIdKey                   ...          
+200168967550210426          Sales  ...  4.000000
+200168967550210426          Sales  ...  0.000000
+
+[2 rows x 14 columns]
+                   WorkgroupQueue  ... Processes
+InteractionIdKey                   ...          
+200180275040210122          Sales  ...  3.000000
+200180275040210122          Sales  ...  5.000000
+200180275040210122          Sales  ...  1.000000
+200180275040210122          Sales  ...  0.000000
+200180275040210122          Sales  ...  4.000000
+200180275040210122          Sales  ...  2.000000
+200180275040210122          Sales  ...  5.000000
+200180275040210122          Sales  ...  0.000000
+200180275040210122          Sales  ...  3.000000
+200180275040210122          Sales  ...  0.000000
+200180275040210122          Sales  ...  0.000000
+
+[11 rows x 14 columns]
+                      WorkgroupQueue  ... Processes
+InteractionIdKey                      ...          
+200175064550210427  Customer Service  ...  2.000000
+200175064550210427  Customer Service  ...  4.000000
+200175064550210427  Customer Service  ...  5.000000
+200175064550210427  Customer Service  ...  5.000000
+
+[4 rows x 14 columns]
+                   WorkgroupQueue  ... Processes
+InteractionIdKey                   ...          
+200180275040210122          Sales  ...  3.000000
+200180275040210122          Sales  ...  5.000000
+200180275040210122          Sales  ...  1.000000
+200180275040210122          Sales  ...  0.000000
+200180275040210122          Sales  ...  4.000000
+200180275040210122          Sales  ...  2.000000
+200180275040210122          Sales  ...  5.000000
+200180275040210122          Sales  ...  0.000000
+200180275040210122          Sales  ...  3.000000
+200180275040210122          Sales  ...  0.000000
+200180275040210122          Sales  ...  0.000000
+
+[11 rows x 14 columns]
+                      WorkgroupQueue  ... Processes
+InteractionIdKey                      ...          
+200141215150210420  Customer Service  ...  4.000000
+200141215150210420  Customer Service  ...  5.000000
+
+[2 rows x 14 columns]
+                   WorkgroupQueue  ... Processes
+InteractionIdKey                   ...          
+300112517850210504          Sales  ...  4.000000
+300112517850210504          Sales  ...  5.000000
+
+[2 rows x 14 columns]
+                   WorkgroupQueue  ... Processes
+InteractionIdKey                   ...          
+300146837040210203          Sales  ...  3.000000
+300146837040210203          Sales  ...  5.000000
+300146837040210203          Sales  ...  2.000000
+300146837040210203          Sales  ...  0.000000
+300146837040210203          Sales  ...  4.000000
+300146837040210203          Sales  ...  1.000000
+300146837040210203          Sales  ...  5.000000
+300146837040210203          Sales  ...  0.000000
+300146837040210203          Sales  ...  3.000000
+300146837040210203          Sales  ...  0.000000
+300146837040210203          Sales  ...  0.000000
+
+[11 rows x 14 columns]
+                      WorkgroupQueue  ... Processes
+InteractionIdKey                      ...          
+300192268640210329  Customer Service  ...  5.000000
+300192268640210329  Customer Service  ...  5.000000
+300192268640210329  Customer Service  ...  2.000000
+300192268640210329  Customer Service  ...  0.000000
+300192268640210329  Customer Service  ...  0.000000
+
+[5 rows x 14 columns]
+                      WorkgroupQueue  ... Processes
+InteractionIdKey                      ...          
+300170824140210206  Customer Service  ...  2.000000
+300170824140210206  Customer Service  ...  4.000000
+300170824140210206  Customer Service  ...  0.000000
+300170824140210206  Customer Service  ...  0.000000
+
+[4 rows x 14 columns]
+                   WorkgroupQueue  ... Processes
+InteractionIdKey                   ...          
+300138569240210201          Sales  ...  4.000000
+300138569240210201          Sales  ...  5.000000
+
+[2 rows x 14 columns]
+training and dev sample size = 656
+test sample size = 855
+Average loss at epoch 0: 0.7183756839665698
+Accuracy: 0.5060975609756098 F1: 0.012195121951219513
+Average loss at epoch 1: 0.7763202673323998
+Accuracy: 0.4969512195121951 F1: 0.6639511201629328
+Average loss at epoch 2: 0.7798671686976422
+Accuracy: 0.4969512195121951 F1: 0.6639511201629328
+Average loss at epoch 3: 0.7049898549732638
+Accuracy: 0.4969512195121951 F1: 0.6639511201629328
+Average loss at epoch 4: 0.7067261196945499
+Accuracy: 0.5060975609756098 F1: 0.012195121951219513
+Average loss at epoch 5: 0.7011316584922919
+Accuracy: 0.5060975609756098 F1: 0.012195121951219513
+Average loss at epoch 6: 0.6953291881193475
+Accuracy: 0.5060975609756098 F1: 0.012195121951219513
+Average loss at epoch 7: 0.7035889646447286
+Accuracy: 0.5060975609756098 F1: 0.012195121951219513
+Average loss at epoch 8: 0.705554340489027
+Accuracy: 0.4969512195121951 F1: 0.6639511201629328
+Average loss at epoch 9: 0.6953835096664545
+Accuracy: 0.5091463414634146 F1: 0.024242424242424246
+Accuracy: 0.4969512195121951 F1: 0.0
+Dev accuracy for Call Transcripts dataset is 0.4969512195121951
+Dev F1 for Call Transcripts dataset is 0.0
+              precision    recall  f1-score   support
+
+           0       0.50      1.00      0.66       163
+           1       0.00      0.00      0.00       165
+
+    accuracy                           0.50       328
+   macro avg       0.25      0.50      0.33       328
+weighted avg       0.25      0.50      0.33       328
+
+Average loss at epoch 0: 0.7471836470521804
+Accuracy: 0.4969512195121951 F1: 0.0
+Average loss at epoch 1: 0.7412022491689862
+Accuracy: 0.4969512195121951 F1: 0.0
+Average loss at epoch 2: 0.7153896918384041
+Accuracy: 0.4969512195121951 F1: 0.0
+Average loss at epoch 3: 0.7198608182370663
+Accuracy: 0.4969512195121951 F1: 0.0
+Average loss at epoch 4: 0.7051200782198731
+Accuracy: 0.4969512195121951 F1: 0.0
+Average loss at epoch 5: 0.70009203064369
+Accuracy: 0.4969512195121951 F1: 0.0
+Average loss at epoch 6: 0.6907605288050523
+Accuracy: 0.4969512195121951 F1: 0.0
+Average loss at epoch 7: 0.6998073506827761
+Accuracy: 0.4969512195121951 F1: 0.0
+Average loss at epoch 8: 0.7000730484724045
+Accuracy: 0.4969512195121951 F1: 0.0
+Average loss at epoch 9: 0.6950365165021362
+Accuracy: 0.4969512195121951 F1: 0.0
+Accuracy: 0.5030487804878049 F1: 0.0
+Dev accuracy for Call Transcripts dataset is 0.5030487804878049
+Dev F1 for Call Transcripts dataset is 0.0
+              precision    recall  f1-score   support
+
+           0       0.50      1.00      0.67       165
+           1       0.00      0.00      0.00       163
+
+    accuracy                           0.50       328
+   macro avg       0.25      0.50      0.33       328
+weighted avg       0.25      0.50      0.34       328
+
+Overall accuracy=0.5 Overall F1 score=0.0
