@@ -13,9 +13,8 @@ from gensim.models.keyedvectors import Word2VecKeyedVectors
 from DataLoader_fns import save_vocab
 import numpy as np
 import torch
-from Models import EncoderRNN, BinaryClassifier
-from TrainModel import train_model
-from DataLoader_fns import collate
+from TrainModel import TrainYelpModel
+from DataLoader_fns import yelp_collate
 from Inference_fns import get_accuracy
 
 dataset_train = YelpDataset('dataset_train.json')
@@ -23,17 +22,17 @@ dataset_dev = YelpDataset('dataset_dev.json')
 dataset_test = YelpDataset('dataset_test.json')
 
 vocab = dataset_train.get_vocab()
-save_vocab(vocab, 'vocab')
+save_vocab(vocab, 'yelp_vocab')
 
 
 batch_size = 5
 
 dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, 
-                              num_workers=0, collate_fn = collate)
+                              num_workers=0, collate_fn = yelp_collate)
 dataloader_dev = DataLoader(dataset_dev, batch_size=batch_size, shuffle=True, 
-                              num_workers=0, collate_fn = collate)
+                              num_workers=0, collate_fn = yelp_collate)
 dataloader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=True, 
-                              num_workers=0, collate_fn = collate)
+                              num_workers=0, collate_fn = yelp_collate)
 
 glove = Word2VecKeyedVectors.load_word2vec_format('glove.w2v.txt')
 vec_size = 300
@@ -41,7 +40,7 @@ vocab_size = len(vocab)
 
 weights_matrix = np.zeros((vocab_size, vec_size))
 i = 0
-for word in vocab.itos:
+for word in vocab.get_itos():
   try:
     weights_matrix[i] = glove[word]
   except KeyError:
@@ -49,12 +48,8 @@ for word in vocab.itos:
   i+=1
   
 weights_matrix = torch.tensor(weights_matrix)
-
-encoder_output_size = 32
-encoder = EncoderRNN(vocab_size, vec_size, encoder_output_size, weights_matrix)
-classifier = BinaryClassifier(encoder_output_size)
-
-encoder, classifier = train_model(dataloader_train, encoder, classifier)
+train_model = TrainYelpModel(dataloader_train, dataloader_dev, vocab_size, vec_size, weights_matrix)
+encoder, classifier = train_model.train_model()
 
 test_acc = get_accuracy(dataloader_test, encoder, classifier)
 print('Test accuracy for Yelp dataset is {}'.format(test_acc))

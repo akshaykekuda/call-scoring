@@ -43,7 +43,7 @@ torch.manual_seed(0)
 
 from torchtext.data.utils import get_tokenizer
 from collections import Counter
-from torchtext.vocab import Vocab
+from torchtext.vocab import vocab
 from torchtext.vocab import GloVe
 
 word_tokenizer = get_tokenizer('basic_english')
@@ -72,7 +72,9 @@ class YelpDataset(Dataset):
               words = word_tokenizer(sentences[i])
               counter.update(words)
 
-        self.vocab = Vocab(counter, min_freq=1)
+        self.vocab = vocab(counter)
+        self.vocab.set_default_index(0)
+
         #self.vocab = self.vocab.append_token('<pad>')
         self.df['category'] = binary_cat
         self.df['text'] = reviews
@@ -103,6 +105,7 @@ dataset_test = YelpDataset('dataset_test.json')
 
 vocab = dataset_train.get_vocab()
 print(len(vocab))
+
 def get_indices(sentence, max_sent_len):
   tokens = word_tokenizer(sentence)
   indices = [vocab[token] for token in tokens]
@@ -191,7 +194,6 @@ class BinaryClassifier(nn.Module):
             nn.Tanh()
         )
 
-
     def forward(self, x):
         output = self.fcn(x)
         
@@ -206,7 +208,7 @@ glove = Word2VecKeyedVectors.load_word2vec_format('glove.w2v.txt')
 
 weights_matrix = np.zeros((vocab_size, vec_size))
 i = 0
-for word in vocab.itos:
+for word in vocab.get_itos():
   try:
     weights_matrix[i] = glove[word]
   except KeyError:
@@ -239,7 +241,7 @@ for n in range(epochs):
         output, hidden = encoder(batch['indices'])
 
         temp = torch.zeros([batch_size, 2 * encoder_output_size])
-        output = output[:,-1,:]
+        output = output[:, -1, :]
   
         output = classifier(output)
         target = batch['category']

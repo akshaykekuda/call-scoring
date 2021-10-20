@@ -13,12 +13,15 @@ import pandas as pd
 import json
 import torch
 from collections import Counter
-from torchtext.vocab import Vocab
+from torchtext.vocab import vocab
 from torchtext.data.utils import get_tokenizer
 import nltk
 from nltk.tokenize import sent_tokenize
 from Preprocessing import preprocess_transcript
 
+scoring_criteria = ['Greeting', 'Professionalism', 'Confidence',
+                    'Cross Selling', 'Retention', 'Creates Incentive', 'Product Knowledge',
+                    'Documentation', 'Education', 'Processes', 'Category', 'CombinedPercentileScore']
 class YelpDataset(Dataset):
     """Yelp dataset."""
 
@@ -45,10 +48,10 @@ class YelpDataset(Dataset):
               words = word_tokenizer(sentences[i])
               counter.update(words)
 
-        self.vocab = Vocab(counter)
+        self.vocab = vocab(counter)
+        self.vocab.set_default_index(0)
         self.df['category'] = binary_cat
         self.df['text'] = reviews
-        
 
 
     def __len__(self):
@@ -66,19 +69,19 @@ class YelpDataset(Dataset):
     def get_vocab(self):
       return self.vocab
 
+
 class CallDataset(Dataset):
     """Call transcript dataset."""
 
-    def __init__(self, files, classifications):
+    def __init__(self, df):
         """
         Args:
             file_name: The json file to make the dataset from
         """
-        self.df = pd.DataFrame()
+        self.df = df
         word_tokenizer = get_tokenizer('basic_english')
-        
         clean_files = []
-        for f in files:
+        for f in df.file_name:
           clean_files.append(preprocess_transcript(f))
 
         counter = Counter()
@@ -89,11 +92,9 @@ class CallDataset(Dataset):
             words = word_tokenizer(transcript[i])
             counter.update(words)
 
-        self.vocab = Vocab(counter)
-        self.df['category'] = classifications
+        self.vocab = vocab(counter)
+        self.vocab.set_default_index(0)
         self.df['text'] = clean_files
-        
-
 
     def __len__(self):
         return len(self.df)
@@ -101,10 +102,10 @@ class CallDataset(Dataset):
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
-        category = self.df.iloc[idx, 0]
-        text = self.df.iloc[idx, 1]
-        sample = {'category': category, 'text': text}
-
+        text = self.df.iloc[idx]['text']
+        id = self.df.index[idx]
+        scores = self.df.iloc[idx][scoring_criteria]
+        sample = {'text': text, 'id': id, 'scores': scores}
         return sample
 
     def get_vocab(self):

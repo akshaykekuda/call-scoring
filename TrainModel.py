@@ -14,46 +14,133 @@ import string
 import re
 import random
 
-import torch
-import torch.nn as nn
-from torch import optim
-import torch.nn.functional as F
-from matplotlib import pyplot as plt
+import numpy as np
+# from matplotlib import pyplot as plt
 from tqdm import tqdm
+from Models import *
 
 from Inference_fns import get_metrics
-
+from sklearn.utils import class_weight
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def train_model(dataloader_train, encoder):
+class TrainYelpModel():
+    def __init__(self, dataloader_train, dataloader_dev, vocab_size, vec_size, weights_matrix):
+        self.dataloader_train = dataloader_train
+        self.dataloader_dev = dataloader_dev
+        self.vocab_size = vocab_size
+        self.vec_size = vec_size
+        self.weights_matrix = weights_matrix
 
-    criterion = nn.CrossEntropyLoss()
-    parameters = filter(lambda p: p.requires_grad, encoder.parameters())
-    encoder_optimizer = optim.Adam(parameters, lr=0.0001)
-    # encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.001)
-    epochs = 30
-    encoder.train()
-    for n in range(epochs):
-        epoch_loss = 0
-        for batch in tqdm(dataloader_train):
-            loss = 0
-            # print(batch)
-            try:
+    def train_model(self):
+        encoder_output_size = 32
+        encoder = EncoderRNN(self.vocab_size, self.vec_size, encoder_output_size, self.weights_matrix)
+        classifier = BinaryClassifier(encoder_output_size)
+
+        criterion = nn.CrossEntropyLoss()
+
+        encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.001)
+        classifier_optimizer = optim.Adam(classifier.parameters(), lr=0.001)
+
+        epochs = 1
+        for n in range(epochs):
+            epoch_loss = 0
+            for batch in tqdm(self.dataloader_train):
+                encoder.zero_grad()
+                classifier.zero_grad()
+                loss = 0
+
+                output, hidden = encoder(batch['indices'])
+                output = output[:, -1, :]
+
+                output = classifier(output)
+                target = batch['category']
+
+                loss += criterion(output, target)
+                epoch_loss += loss.detach().item()
+                loss.backward()
+
+                encoder_optimizer.step()
+                classifier_optimizer.step()
+
+            print("Average loss at epoch {}: {}".format(n, epoch_loss / len(self.dataloader_train)))
+            acc = get_accuracy(self.dataloader_train, encoder, classifier)
+            print("Average accuracy at epoch {}: {}".format(n, acc))
+
+        return encoder, classifier
+
+class TrainModel():
+    def __init__(self, dataloader_train, dataloader_dev, vocab_size, vec_size, weights_matrix):
+        self.dataloader_train = dataloader_train
+        self.dataloader_dev = dataloader_dev
+        self.vocab_size = vocab_size
+        self.vec_size = vec_size
+        self.weights_matrix = weights_matrix
+
+
+    def train_cross_selling_model(self):
+        x = [batch['scores'] for batch in self.dataloader_train]
+        arr = []
+        for b in x:
+            arr.extend(b)
+        y_train = [sample['Cross Selling'].item() for sample in arr]
+        class_weights = class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train), y=y_train)
+        # class_weights = [0.8, 0.2]
+        class_weights = torch.tensor(class_weights, dtype=torch.float)
+        hidden_size =64
+        encoder = HAN(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
+        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.0001)
+        epochs = 20
+        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, 'Cross Selling', type='bi_class')
+        return model
+
+
+    def train_overall_model(self):
+        x = [batch['scores'] for batch in self.dataloader_train]
+        arr = []
+        for b in x:
+            arr.extend(b)
+        y_train = [sample['Category'].item() for sample in arr]
+        class_weights = class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train), y=y_train)
+        # class_weights = [0.8, 0.2]
+        class_weights = torch.tensor(class_weights, dtype=torch.float)
+        hidden_size =64
+        encoder = HAN(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
+        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.0001)
+        epochs = 20
+        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, 'Category', type='bi_class')
+        return model
+
+    def train_linear_regressor(self):
+        hidden_size = 64
+        encoder = HAN_Regression(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
+        criterion = nn.MSELoss()
+        encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.01)
+        epochs = 5
+        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, 'CombinedPercentileScore', type='mse')
+        return model
+
+    def train_model(self, epochs, encoder, criterion, encoder_optimizer, scoring_criterion, type):
+        train_acc = []
+        dev_acc = []
+        encoder.train()
+        for n in range(epochs):
+            epoch_loss = 0
+            for batch in tqdm(self.dataloader_train):
+                loss = 0
                 output, scores = encoder(batch['indices'])
-            except:
-                print(batch)
-                continue
-            target = batch['category']
-            loss += criterion(output, target)
-            encoder_optimizer.zero_grad()
-            epoch_loss += loss.detach().item()
-            loss.backward()
-            # print("training loss: {}".format(loss))
-            encoder_optimizer.step()
-        print("Average loss at epoch {}: {}".format(n, epoch_loss/len(dataloader_train)))
-        if n%10 ==0:
-            metrics = get_metrics(dataloader_train, encoder)
-            print("Training accuracy at end of epoch {}: {}".format(n, metrics['accuracy']))
-            print(metrics['clr'])
-
-    return encoder
+                target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']], dtype=torch.float).view(-1, 1)
+                loss += criterion(output, target)
+                encoder_optimizer.zero_grad()
+                epoch_loss += loss.detach().item()
+                loss.backward()
+                encoder_optimizer.step()
+            print("Average loss at epoch {}: {}".format(n, epoch_loss/len(self.dataloader_train)))
+            if n%5 ==4:
+                print("Training MSE at end of epoch {}:".format(n))
+                get_metrics(self.dataloader_train, encoder, scoring_criterion, type)
+                print("Dev MSE at end of epoch {}:".format(n))
+                get_metrics(self.dataloader_dev, encoder, scoring_criterion, type)
+        print(train_acc, dev_acc)
+        return encoder

@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/attention_model.iml" filepath="$PROJECT_DIR$/.idea/attention_model.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../OSU/Autumn21/SpeechLang/HW2/hw2-distrib/.idea/hw2-distrib.iml" filepath="$PROJECT_DIR$/../../OSU/Autumn21/SpeechLang/HW2/hw2-distrib/.idea/hw2-distrib.iml" />
     </modules>
   </component>
 </project>

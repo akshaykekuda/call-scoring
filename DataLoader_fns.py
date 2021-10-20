@@ -11,6 +11,17 @@ import torch
 from torchtext.data.utils import get_tokenizer
 import pickle
 
+word_tokenizer = get_tokenizer('basic_english')
+file = open("vocab", 'rb')
+vocab = pickle.load(file)
+file.close()
+
+# word_tokenizer = get_tokenizer('basic_english')
+# file = open("yelp_vocab", 'rb')
+# yelp_vocab = pickle.load(file)
+# file.close()
+
+
 def save_vocab(vocab, path):
     import pickle
     output = open(path, 'wb')
@@ -23,22 +34,16 @@ def pad_review(review, max_len):
     review.append('<pad>')
   return review
 
-def get_indices(sentence, max_sent_len, vocab):
+def get_indices(sentence, max_sent_len):
   word_tokenizer = get_tokenizer('basic_english')
   tokens = word_tokenizer(sentence)
   indices = [vocab[token] for token in tokens]
   diff = max_sent_len - len(tokens)
   for i in range(diff):
-    indices.append(1)
+    indices.append(1) #padding idx=1
   return indices
 
 def collate(batch):
-
-  word_tokenizer = get_tokenizer('basic_english')
-  file = open("vocab",'rb')
-  vocab = pickle.load(file)
-  file.close()
-
   max_num_sents = 0
   max_sent_len = 0
   for sample in batch:
@@ -53,7 +58,35 @@ def collate(batch):
     sample['text'] = pad_review(sample['text'], max_num_sents)
     sample['indices']= []
     for sent in sample['text']:
-      sample['indices'].append(get_indices(sent, max_sent_len, vocab))
+      sample['indices'].append(get_indices(sent, max_sent_len))
+
+  batch_dict = {'text': [], 'indices': [], 'scores': [], 'id': []}
+  for sample in batch:
+    batch_dict['text'].append(sample['text'])
+    batch_dict['indices'].append(sample['indices'])
+    batch_dict['scores'].append(sample['scores'])
+    batch_dict['id'].append(sample['id'])
+
+  batch_dict['indices'] = torch.tensor(batch_dict['indices'])
+  return batch_dict
+
+
+def yelp_collate(batch):
+  max_num_sents = 0
+  max_sent_len = 0
+  for sample in batch:
+    num_sents = len(sample['text'])
+    if num_sents > max_num_sents:
+      max_num_sents = num_sents
+    for sent in sample['text']:
+      if len(word_tokenizer(sent)) > max_sent_len:
+        max_sent_len = len(word_tokenizer(sent))
+
+  for sample in batch:
+    sample['text'] = pad_review(sample['text'], max_num_sents)
+    sample['indices'] = []
+    for sent in sample['text']:
+      sample['indices'].append(get_indices(sent, max_sent_len))
 
   batch_dict = {'text': [], 'indices': [], 'category': []}
   for sample in batch:
@@ -61,6 +94,6 @@ def collate(batch):
     batch_dict['indices'].append(sample['indices'])
     batch_dict['category'].append(sample['category'])
   batch_dict['indices'] = torch.tensor(batch_dict['indices'])
-  batch_dict['category'] = torch.tensor(batch_dict['category'], dtype = torch.long)
+  batch_dict['category'] = torch.tensor(batch_dict['category'])
 
   return batch_dict
