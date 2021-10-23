@@ -16,46 +16,32 @@ from sklearn.metrics import classification_report, f1_score, mean_squared_error
 from PrepareDf import prepare_baseline_df
 
 def get_metrics(dataloader, encoder, scoring_criterion, type):
-  pred_arr = []
-  target_arr =[]
-  encoder.eval()
-  total_correct = 0
-  batch_size = dataloader.batch_size
-
-  if type=='bi_class':
+    pred_arr = []
+    target_arr =[]
+    encoder.eval()
     with torch.no_grad():
         for batch in tqdm(dataloader):
             output, scores = encoder(batch['indices'])
-            for i in range(output.shape[0]):
-              classification = torch.argmax(output[i]).item()
-              target = batch['scores'][i][scoring_criterion]
-              pred_arr.append(classification)
-              target_arr.append(target)
-              if target == classification:
-                total_correct+=1
-
+            if type == 'mse':
+                pred = output.numpy()
+            elif type == 'bi_class':
+                pred = torch.argmax(output[i], dim=0).numpy()
+            target = [sample[scoring_criterion] for sample in batch['scores']]
+            pred_arr.extend(pred)
+            target_arr.extend(target)
     encoder.train()
-    acc = total_correct/(len(dataloader) * batch_size)
-    f1 = f1_score(target_arr, pred_arr)
-    clr = classification_report(target_arr, pred_arr)
-    print("Accuracy: {} F1: {}".format(acc, f1))
-    print(clr)
-    metrics = {'accuracy':acc, 'f1':f1, 'clr':clr}
-    return metrics
-  elif type == 'mse':
-    with torch.no_grad():
-      for batch in tqdm(dataloader):
-        output, scores = encoder(batch['indices'])
-        for i in range(output.shape[0]):
-          pred = output[i].item()
-          target = batch['scores'][i][scoring_criterion]
-          pred_arr.append(pred)
-          target_arr.append(target)
-    encoder.train()
-    mse_error = mean_squared_error(target_arr, pred_arr)
-    print("MSE Error = {}".format(mse_error))
+    if type == 'mse':
+        mse_error = mean_squared_error(target_arr, pred_arr)
+        print("MSE Error = {}".format(mse_error))
+        return mse_error
 
-  return mse_error
+    elif type == 'bi_class':
+        f1 = f1_score(target_arr, pred_arr)
+        clr = classification_report(target_arr, pred_arr)
+        print("Accuracy: {} F1: {}".format(acc, f1))
+        print(clr)
+        metrics = {'accuracy': acc, 'f1': f1, 'clr': clr}
+        return metrics
 
 def predict(transcript, encoder, vocab):
   
@@ -107,11 +93,11 @@ def predict_baseline_metrics(test_df, type):
         if test_df.loc[call_id, 'WorkgroupQueue'] == 'Sales':
           if call_id in sales_df.index:
             df.loc[call_id, 'Predicted Score'] = 1 - sales_df.loc[call_id, 'score']
-            df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore'] / 100
+            df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']
         elif test_df.loc[call_id, 'WorkgroupQueue'] == 'Customer Service':
           if call_id in cs_df.index:
             df.loc[call_id, 'Predicted Score'] = 1 - cs_df.loc[call_id, 'score']
-            df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore'] / 100
+            df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']
       mse_error = mean_squared_error(df['Overall Score'].tolist(), df['Predicted Score'].tolist())
       print("MSE Error = {}".format(mse_error))
       return mse_error

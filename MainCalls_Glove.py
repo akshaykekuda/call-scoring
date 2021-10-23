@@ -35,6 +35,7 @@ dataset_transcripts_test = CallDataset(test_df)
 
 kfold_results = []
 for train, dev in kf.split(train_df):
+    # train, dev = train_test_split(df_sampled, test_size=0.20)
     t_df = train_df.iloc[train].copy()
     dev_df = train_df.iloc[dev].copy()
     dataset_transcripts_train = CallDataset(t_df)
@@ -55,32 +56,32 @@ for train, dev in kf.split(train_df):
                                  num_workers=0, collate_fn = collate)
     # model = Word2Vec.load('custom_w2v_100d')
 
-    model = Word2VecKeyedVectors.load_word2vec_format('glove.w2v.txt')
+    model = Word2VecKeyedVectors.load_word2vec_format('word_embeddings/glove.w2v.txt')
     vec_size = model.vector_size
     vocab_size = len(vocab)
 
     weights_matrix = np.zeros((vocab_size, vec_size))
     i = 0
     for word in vocab.get_itos()[2:]:
-      try:
-        weights_matrix[i] = model[word] #model.wv[word] for trained word2vec
-      except KeyError:
-        weights_matrix[i] = np.random.normal(scale=0.6, size=(vec_size, ))
-      i+=1
+        try:
+            weights_matrix[i] = model[word] #model.wv[word] for trained word2vec
+        except KeyError:
+            weights_matrix[i] = np.random.normal(scale=0.6, size=(vec_size, ))
+        i+=1
     weights_matrix[0] = np.mean(weights_matrix, axis=0)
     weights_matrix = torch.tensor(weights_matrix)
     trainer = TrainModel(dataloader_transcripts_train, dataloader_transcripts_dev, vocab_size, vec_size, weights_matrix)
     call_encoder = trainer.train_linear_regressor()
     torch.save(call_encoder, "call_encoder.model")
     print('Dev MSE for Call Transcripts dataset:')
-    get_regression_metrics(dataloader_transcripts_dev, call_encoder, 'CombinedPercentileScore')
+    get_metrics(dataloader_transcripts_dev, call_encoder, 'CombinedPercentileScore', type='mse')
     print('Dev Baseline Model Metrics:')
     predict_baseline_mse(dev_df)
     print('Test accuracy for Call Transcripts dataset  is:')
-    test_mse_err = get_regression_metrics(dataloader_transcripts_test, call_encoder, 'CombinedPercentileScore')
+    get_metrics(dataloader_transcripts_test, call_encoder, 'CombinedPercentileScore', type='mse')
     print('Test Baseline Model Metrics:')
-    test_mse_bs_er = predict_baseline_mse(test_df)
-
+    predict_baseline_mse(test_df)
+    break
     # model = trainer.train_overall_model()
     # print('Dev MSE for Call Transcripts dataset:')
     # get_metrics(dataloader_transcripts_dev, model, 'Category')
@@ -90,7 +91,5 @@ for train, dev in kf.split(train_df):
     # get_regression_metrics(dataloader_transcripts_test, model, 'Category')
     # print('Test Baseline Model Metrics:')
     # predict_baseline_metrics(test_df)
-    kfold_results.append((test_mse_err, test_mse_bs_er))
-
-avg_tuple = [sum(y) / len(y) for y in zip(*kfold_results)]
-print("HAN MSE Error={} Baseline MSE Error={}".format(avg_tuple[0], avg_tuple[1]))
+# avg_tuple = [sum(y) / len(y) for y in zip(*kfold_results)]
+# print("Overall accuracy={} Overall F1 score={}".format(avg_tuple[0], avg_tuple[1]))

@@ -365,13 +365,13 @@ class HAN_Regression(nn.Module):
         self.sentence_attention = SentenceAttention(2*hidden_size, hidden_size)
         self.fcn = nn.Sequential(
             nn.Linear(2*hidden_size, 64),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Dropout(0.5),
             nn.Linear(64, 10),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             # nn.Dropout(0.8),
             nn.Linear(10, 1),
-            nn.ReLU()
+            nn.LeakyReLU()
         )
 
     def forward(self, inputs):

@@ -19,7 +19,7 @@ import numpy as np
 from tqdm import tqdm
 from Models import *
 
-from Inference_fns import get_metrics
+from Inference_fns import get_metrics, get_regression_metrics
 from sklearn.utils import class_weight
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -76,9 +76,8 @@ class TrainModel():
         self.vec_size = vec_size
         self.weights_matrix = weights_matrix
 
-
     def train_cross_selling_model(self):
-        x = [batch['scores'] for batch in self.dataloader_train]
+        x = [batch['subscores'] for batch in self.dataloader_train]
         arr = []
         for b in x:
             arr.extend(b)
@@ -91,9 +90,9 @@ class TrainModel():
         criterion = nn.CrossEntropyLoss(weight=class_weights)
         encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.0001)
         epochs = 20
-        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, 'Cross Selling', type='bi_class')
+        model = self.train_model(epochs, encoder, criterion, encoder_optimizer,
+                                 scoring_criterion="Cross Selling", type='bi_class')
         return model
-
 
     def train_overall_model(self):
         x = [batch['scores'] for batch in self.dataloader_train]
@@ -109,19 +108,23 @@ class TrainModel():
         criterion = nn.CrossEntropyLoss(weight=class_weights)
         encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.0001)
         epochs = 20
-        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, 'Category', type='bi_class')
+        model = self.train_model(epochs, encoder, criterion, encoder_optimizer,
+                                 scoring_criterion="CombinedPercentileScore", type='bi_class')
         return model
 
     def train_linear_regressor(self):
         hidden_size = 64
         encoder = HAN_Regression(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
+
         criterion = nn.MSELoss()
-        encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.01)
+        encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.0001)
         epochs = 5
-        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, 'CombinedPercentileScore', type='mse')
+        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, scoring_criterion="CombinedPercentileScore", type='mse')
         return model
 
     def train_model(self, epochs, encoder, criterion, encoder_optimizer, scoring_criterion, type):
+        print("inside train model")
+        print(len(self.dataloader_train))
         train_acc = []
         dev_acc = []
         encoder.train()
@@ -129,7 +132,10 @@ class TrainModel():
             epoch_loss = 0
             for batch in tqdm(self.dataloader_train):
                 loss = 0
-                output, scores = encoder(batch['indices'])
+                try:
+                    output, scores = encoder(batch['indices'])
+                except IndexError:
+                    print(batch['indices'])
                 target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']], dtype=torch.float).view(-1, 1)
                 loss += criterion(output, target)
                 encoder_optimizer.zero_grad()
@@ -144,3 +150,4 @@ class TrainModel():
                 get_metrics(self.dataloader_dev, encoder, scoring_criterion, type)
         print(train_acc, dev_acc)
         return encoder
+
