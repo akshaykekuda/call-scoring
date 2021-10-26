@@ -354,7 +354,7 @@ def make_model(src_vocab, tgt_vocab, N=6,
     # Initialize parameters with Glorot / fan_avg.
     for p in model.parameters():
         if p.dim() > 1:
-            nn.init.xavier_uniform(p)
+            nn.init.xavier_uniform_(p)
     return model
 
 
@@ -364,14 +364,17 @@ class HAN_Regression(nn.Module):
         self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
         self.sentence_attention = SentenceAttention(2*hidden_size, hidden_size)
         self.fcn = nn.Sequential(
-            nn.Linear(2*hidden_size, 64),
-            nn.LeakyReLU(),
+            nn.Linear(2*hidden_size, 256),
+            nn.ReLU(),
             nn.Dropout(0.5),
+            nn.Linear(256, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
             nn.Linear(64, 10),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             # nn.Dropout(0.8),
             nn.Linear(10, 1),
-            nn.LeakyReLU()
+            nn.ReLU()
         )
 
     def forward(self, inputs):
@@ -406,7 +409,7 @@ class HAN(nn.Module):
 class SentenceAttention(nn.Module):
     def __init__(self, sentence_embedding_size, hidden_size):
         super(SentenceAttention, self).__init__()
-        self.gru = nn.GRU(sentence_embedding_size, hidden_size, batch_first=True, bidirectional=True)
+        self.gru = nn.LSTM(sentence_embedding_size, hidden_size, batch_first=True, bidirectional=True)
         self.attn = nn.Sequential(
             nn.Linear(2*hidden_size, hidden_size),
             nn.Tanh(),
@@ -429,7 +432,7 @@ class WordAttention(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
         self.embedding.load_state_dict({'weight': weights_matrix})
         self.hidden_size = hidden_size
-        self.gru = nn.GRU(embedding_size, hidden_size, batch_first=True, bidirectional=True)
+        self.gru = nn.LSTM(embedding_size, hidden_size, batch_first=True, bidirectional=True)
         self.attn = nn.Sequential(
             nn.Linear(2*hidden_size, hidden_size),
             nn.Tanh(),

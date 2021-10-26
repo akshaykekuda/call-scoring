@@ -21,10 +21,13 @@ def prepare_score_df(path_to_p):
     score_df = pd.DataFrame()
     score_df['WorkgroupQueue'] = calls_df.WorkgroupQueue[::10]
     score_df['RecordingDate'] = calls_df.RecordingDate[::10]
-    score_df['CombinedPercentileScore'] = (calls_df.CombinedPercentileScore[::10]/100).astype(float).round(4)
-    score_df['Category'] = (score_df['CombinedPercentileScore'] > 0.75).apply(lambda x: int(x))
-    # score_df['CombinedPercentileScore'] = (calls_df.CombinedPercentileScore[::10]).astype(float).round(2)
-    # score_df['Category'] = (score_df['CombinedPercentileScore'] > 75).apply(lambda x: int(x))
+    # change baseline score range accordingly
+    # overall score between 0 and 1
+    # score_df['CombinedPercentileScore'] = (calls_df.CombinedPercentileScore[::10]/100).astype(float).round(4)
+    # score_df['Category'] = (score_df['CombinedPercentileScore'] > 0.75).apply(lambda x: int(x))
+    # overall score between 0 and 100
+    score_df['CombinedPercentileScore'] = (calls_df.CombinedPercentileScore[::10]).astype(float).round(2)
+    score_df['Category'] = (score_df['CombinedPercentileScore'] > 75).apply(lambda x: int(x))
     score_df.index = calls_df.InteractionIdKey[::10]
     calls_df.AnswerScore = calls_df.AnswerScore.astype('int')
     for i in range(10):

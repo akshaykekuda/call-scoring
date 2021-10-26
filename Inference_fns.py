@@ -25,11 +25,14 @@ def get_metrics(dataloader, encoder, scoring_criterion, type):
             if type == 'mse':
                 pred = output.numpy()
             elif type == 'bi_class':
-                pred = torch.argmax(output[i], dim=0).numpy()
+                pred = torch.argmax(output, dim=1).numpy()
             target = [sample[scoring_criterion] for sample in batch['scores']]
             pred_arr.extend(pred)
             target_arr.extend(target)
     encoder.train()
+    print("Sample predictions")
+    print("target:", target_arr[:10])
+    print("prediction:", pred_arr[:10])
     if type == 'mse':
         mse_error = mean_squared_error(target_arr, pred_arr)
         print("MSE Error = {}".format(mse_error))
@@ -38,35 +41,10 @@ def get_metrics(dataloader, encoder, scoring_criterion, type):
     elif type == 'bi_class':
         f1 = f1_score(target_arr, pred_arr)
         clr = classification_report(target_arr, pred_arr)
-        print("Accuracy: {} F1: {}".format(acc, f1))
+        print("F1: {}".format(f1))
         print(clr)
-        metrics = {'accuracy': acc, 'f1': f1, 'clr': clr}
+        metrics = {'f1': f1, 'clr': clr}
         return metrics
-
-def predict(transcript, encoder, vocab):
-  
-  word_tokenizer = get_tokenizer('basic_english')
-  sents = preprocess_transcript(transcript)
-  max_len = 0
-  for sent in sents:
-    tokens = word_tokenizer(sent)
-    if len(tokens) > max_len:
-      max_len = len(tokens)
-
-  indices = []
-  for sent in sents:
-    indices.append(get_indices(sent, max_len, vocab))
-  indices = torch.tensor(indices)
-
-  indices = indices.unsqueeze_(0)
-
-  output, hidden = encoder(indices)
-  output = output[:, -1, :]
-
-  output = classifier(output)
-  classification = torch.argmax(output).item()
-
-  return classification
 
 
 def predict_baseline_metrics(test_df, type):
@@ -92,15 +70,41 @@ def predict_baseline_metrics(test_df, type):
       for call_id in test_df.index:
         if test_df.loc[call_id, 'WorkgroupQueue'] == 'Sales':
           if call_id in sales_df.index:
-            df.loc[call_id, 'Predicted Score'] = 1 - sales_df.loc[call_id, 'score']
+            df.loc[call_id, 'Predicted Score'] = (1 - sales_df.loc[call_id, 'score'])*100
             df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']
         elif test_df.loc[call_id, 'WorkgroupQueue'] == 'Customer Service':
           if call_id in cs_df.index:
-            df.loc[call_id, 'Predicted Score'] = 1 - cs_df.loc[call_id, 'score']
+            df.loc[call_id, 'Predicted Score'] = (1 - cs_df.loc[call_id, 'score'])*100
             df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']
       mse_error = mean_squared_error(df['Overall Score'].tolist(), df['Predicted Score'].tolist())
       print("MSE Error = {}".format(mse_error))
       return mse_error
+
+
+def predict(transcript, encoder, vocab):
+  
+  word_tokenizer = get_tokenizer('basic_english')
+  sents = preprocess_transcript(transcript)
+  max_len = 0
+  for sent in sents:
+    tokens = word_tokenizer(sent)
+    if len(tokens) > max_len:
+      max_len = len(tokens)
+
+  indices = []
+  for sent in sents:
+    indices.append(get_indices(sent, max_len, vocab))
+  indices = torch.tensor(indices)
+
+  indices = indices.unsqueeze_(0)
+
+  output, hidden = encoder(indices)
+  output = output[:, -1, :]
+
+  output = classifier(output)
+  classification = torch.argmax(output).item()
+
+  return classification
 
 
 def get_regression_metrics(dataloader, encoder, scoring_criterion):

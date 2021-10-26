@@ -26,51 +26,21 @@ import time
 
 np.random.seed(0)
 torch.manual_seed(0)
-kf = KFold(n_splits=5, shuffle=True)
-score_df, score_comment_df, q_text = prepare_score_df("/Users/akshaykekuda/Desktop/CSR-SA/ScoringDetail_viw_all_subscore.p")
-transcript_score_df = prepare_trancript_score_df(score_df, q_text)
-train_df, test_df = train_test_split(transcript_score_df, test_size=0.20)
-# df_sampled, test_df = sample_df(train)
-dataset_transcripts_test = CallDataset(test_df)
 
-kfold_results = []
-for train, dev in kf.split(train_df):
-    # train, dev = train_test_split(df_sampled, test_size=0.20)
-    t_df = train_df.iloc[train].copy()
-    dev_df = train_df.iloc[dev].copy()
-    dataset_transcripts_train = CallDataset(t_df)
-    dataset_transcripts_dev = CallDataset(dev_df)
 
-    vocab = dataset_transcripts_train.get_vocab()
-    vocab.insert_token('<pad>', 0)
-    vocab.insert_token('<UNK>', 0)
-    save_vocab(vocab, 'vocab')
+def predict_overall_category(trainer, dataloader_transcripts_dev, dataloader_transcripts_test, dev_df, test_df):
+    model = trainer.train_overall_model()
+    print('Dev Accuracy for Call Transcripts dataset:')
+    get_metrics(dataloader_transcripts_dev, model, 'Category', type='bi_class')
+    print('Dev Baseline Model Metrics:')
+    predict_baseline_metrics(dev_df, type='bi_class')
+    print('Test accuracy for Call Transcripts dataset  is:')
+    get_metrics(dataloader_transcripts_test, model, 'Category', type='bi_class')
+    print('Test Baseline Model Metrics:')
+    predict_baseline_metrics(test_df, type='bi_class')
 
-    batch_size = 8
 
-    dataloader_transcripts_train = DataLoader(dataset_transcripts_train, batch_size=batch_size, shuffle=True, 
-                                  num_workers=0, collate_fn = collate)
-    dataloader_transcripts_dev = DataLoader(dataset_transcripts_dev, batch_size=batch_size, shuffle=True, 
-                                  num_workers=0, collate_fn = collate)
-    dataloader_transcripts_test = DataLoader(dataset_transcripts_test, batch_size=batch_size, shuffle=True,
-                                 num_workers=0, collate_fn = collate)
-    # model = Word2Vec.load('custom_w2v_100d')
-
-    model = Word2VecKeyedVectors.load_word2vec_format('word_embeddings/glove.w2v.txt')
-    vec_size = model.vector_size
-    vocab_size = len(vocab)
-
-    weights_matrix = np.zeros((vocab_size, vec_size))
-    i = 0
-    for word in vocab.get_itos()[2:]:
-        try:
-            weights_matrix[i] = model[word] #model.wv[word] for trained word2vec
-        except KeyError:
-            weights_matrix[i] = np.random.normal(scale=0.6, size=(vec_size, ))
-        i+=1
-    weights_matrix[0] = np.mean(weights_matrix, axis=0)
-    weights_matrix = torch.tensor(weights_matrix)
-    trainer = TrainModel(dataloader_transcripts_train, dataloader_transcripts_dev, vocab_size, vec_size, weights_matrix)
+def predict_overall_score(trainer, dataloader_transcripts_dev, dataloader_transcripts_test, dev_df, test_df):
     call_encoder = trainer.train_linear_regressor()
     torch.save(call_encoder, "call_encoder.model")
     print('Dev MSE for Call Transcripts dataset:')
@@ -81,15 +51,63 @@ for train, dev in kf.split(train_df):
     get_metrics(dataloader_transcripts_test, call_encoder, 'CombinedPercentileScore', type='mse')
     print('Test Baseline Model Metrics:')
     predict_baseline_mse(test_df)
-    break
-    # model = trainer.train_overall_model()
-    # print('Dev MSE for Call Transcripts dataset:')
-    # get_metrics(dataloader_transcripts_dev, model, 'Category')
-    # print('Dev Baseline Model Metrics:')
-    # predict_baseline_metrics(dev_df)
-    # print('Test accuracy for Call Transcripts dataset  is:')
-    # get_regression_metrics(dataloader_transcripts_test, model, 'Category')
-    # print('Test Baseline Model Metrics:')
-    # predict_baseline_metrics(test_df)
-# avg_tuple = [sum(y) / len(y) for y in zip(*kfold_results)]
-# print("Overall accuracy={} Overall F1 score={}".format(avg_tuple[0], avg_tuple[1]))
+
+
+def run_cross_validation(train_df, test_df):
+    kfold_results = []
+    dataset_transcripts_test = CallDataset(test_df)
+    for train, dev in kf.split(train_df):
+        # train, dev = train_test_split(df_sampled, test_size=0.20)
+        t_df = train_df.iloc[train].copy()
+        dev_df = train_df.iloc[dev].copy()
+        dataset_transcripts_train = CallDataset(t_df)
+        dataset_transcripts_dev = CallDataset(dev_df)
+
+        vocab = dataset_transcripts_train.get_vocab()
+        vocab.insert_token('<pad>', 0)
+        vocab.insert_token('<UNK>', 0)
+        save_vocab(vocab, 'vocab')
+
+        batch_size = 8
+
+        dataloader_transcripts_train = DataLoader(dataset_transcripts_train, batch_size=batch_size, shuffle=True,
+                                                  num_workers=0, collate_fn=collate)
+        dataloader_transcripts_dev = DataLoader(dataset_transcripts_dev, batch_size=batch_size, shuffle=True,
+                                                num_workers=0, collate_fn=collate)
+        dataloader_transcripts_test = DataLoader(dataset_transcripts_test, batch_size=batch_size, shuffle=True,
+                                                 num_workers=0, collate_fn=collate)
+        # model = Word2Vec.load('custom_w2v_100d')
+
+        model = Word2VecKeyedVectors.load_word2vec_format('../word_embeddings/glove.w2v.txt')
+        vec_size = model.vector_size
+        vocab_size = len(vocab)
+
+        weights_matrix = np.zeros((vocab_size, vec_size))
+        i = 0
+        for word in vocab.get_itos()[2:]:
+            try:
+                weights_matrix[i] = model[word]  # model.wv[word] for trained word2vec
+            except KeyError:
+                weights_matrix[i] = np.random.normal(scale=0.6, size=(vec_size,))
+            i += 1
+        weights_matrix[0] = np.mean(weights_matrix, axis=0)
+        weights_matrix = torch.tensor(weights_matrix)
+        trainer = TrainModel(dataloader_transcripts_train, dataloader_transcripts_dev, vocab_size, vec_size,
+                             weights_matrix)
+        # predict_overall_category(trainer, dataloader_transcripts_dev, dataloader_transcripts_test, dev_df, test_df)
+        predict_overall_score(trainer, dataloader_transcripts_dev, dataloader_transcripts_test, dev_df, test_df)
+        break
+    return kfold_results
+
+
+if __name__ == "__main__":
+    print("enter main")
+    kf = KFold(n_splits=5, shuffle=True)
+    score_df, score_comment_df, q_text = prepare_score_df(
+        "/Users/akshaykekuda/Desktop/CSR-SA/ScoringDetail_viw_all_subscore.p")
+    transcript_score_df = prepare_trancript_score_df(score_df, q_text)
+    train_df, test_df = train_test_split(transcript_score_df, test_size=0.20)
+    # df_sampled, test_df = sample_df(train)
+    kfold_results = run_cross_validation(train_df, test_df)
+    # avg_tuple = [sum(y) / len(y) for y in zip(*kfold_results)]
+    # print("Overall accuracy={} Overall F1 score={}".format(avg_tuple[0], avg_tuple[1]))

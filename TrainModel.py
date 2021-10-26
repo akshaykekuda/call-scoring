@@ -16,6 +16,7 @@ import random
 
 import numpy as np
 # from matplotlib import pyplot as plt
+import torch
 from tqdm import tqdm
 from Models import *
 
@@ -107,18 +108,21 @@ class TrainModel():
         encoder = HAN(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
         criterion = nn.CrossEntropyLoss(weight=class_weights)
         encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.0001)
-        epochs = 20
+        epochs = 10
         model = self.train_model(epochs, encoder, criterion, encoder_optimizer,
-                                 scoring_criterion="CombinedPercentileScore", type='bi_class')
+                                 scoring_criterion="Category", type='bi_class')
         return model
 
     def train_linear_regressor(self):
         hidden_size = 64
         encoder = HAN_Regression(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
-
+        for p in encoder.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
         criterion = nn.MSELoss()
-        encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.0001)
-        epochs = 5
+        encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.01)
+        scheduler = MultiStepLR(optimizer, milestones=[10, 30], gamma=0.1)
+        epochs = 50
         model = self.train_model(epochs, encoder, criterion, encoder_optimizer, scoring_criterion="CombinedPercentileScore", type='mse')
         return model
 
@@ -136,7 +140,10 @@ class TrainModel():
                     output, scores = encoder(batch['indices'])
                 except IndexError:
                     print(batch['indices'])
-                target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']], dtype=torch.float).view(-1, 1)
+                if type == 'mse':
+                    target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']], dtype=torch.float).view(-1, 1)
+                elif type =='bi_class':
+                    target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']], dtype=torch.long)
                 loss += criterion(output, target)
                 encoder_optimizer.zero_grad()
                 epoch_loss += loss.detach().item()
