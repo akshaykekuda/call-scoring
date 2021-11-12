@@ -335,6 +335,7 @@ class PositionalEncoding(nn.Module):
                          requires_grad=False)
         return self.dropout(x)
 
+
 def make_model(src_vocab, tgt_vocab, N=6,
                d_model=512, d_ff=2048, h=8, dropout=0.1):
     "Helper: Construct a model from hyperparameters."
@@ -364,22 +365,42 @@ class HAN_Regression(nn.Module):
         self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
         self.sentence_attention = SentenceAttention(2*hidden_size, hidden_size)
         self.fcn = nn.Sequential(
-            nn.Linear(2*hidden_size, 256),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, 64),
+            nn.Linear(2 * hidden_size, 64),
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(64, 10),
             nn.ReLU(),
-            # nn.Dropout(0.8),
+            nn.Dropout(0.2),
             nn.Linear(10, 1),
             nn.ReLU()
         )
 
-    def forward(self, inputs):
-        att1 = self.word_attention(inputs)
-        att2, sentence_att_scores = self.sentence_attention(att1)
+    def forward(self, inputs, lens):
+        att1 = self.word_attention(inputs, lens)
+        att2, sentence_att_scores = self.sentence_attention(att1, lens)
+        output = self.fcn(att2)
+        return output, sentence_att_scores
+
+
+class HSAN_Regression(nn.Module):
+    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len, max_sent_len):
+        super(HSAN_Regression, self).__init__()
+        self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, 2*hidden_size, weights_matrix, max_sent_len)
+        self.sentence_multihead_attention = SentenceMultiHeadAttention(2*hidden_size, max_trans_len, num_heads=1)
+        self.fcn = nn.Sequential(
+            nn.Linear(2 * hidden_size, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 10),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(10, 1),
+            nn.ReLU()
+        )
+
+    def forward(self, inputs, lens):
+        att1 = self.word_self_attention(inputs, lens)
+        att2, sentence_att_scores = self.sentence_multihead_attention(att1, lens)
         output = self.fcn(att2)
         return output, sentence_att_scores
 
@@ -392,24 +413,67 @@ class HAN(nn.Module):
         self.fcn = nn.Sequential(
             nn.Linear(2*hidden_size, 64),
             nn.Tanh(),
-            nn.Dropout(0.8),
-            nn.Linear(64, 10),
+            nn.Dropout(0.3),
+            nn.Linear(64, 2),
             nn.Tanh(),
-            # nn.Dropout(0.8),
-            nn.Linear(10, 2),
-            nn.Tanh()
+            # nn.Dropout(0.2),
+            # nn.Linear(10, 2),
+            # nn.Tanh()
         )
 
-    def forward(self, inputs):
-        att1 = self.word_attention(inputs)
-        att2, sentence_att_scores = self.sentence_attention(att1)
+    def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
+        att1 = self.word_attention(inputs, lens)
+        att2, sentence_att_scores = self.sentence_attention(att1, lens)
         logits = self.fcn(att2)
         return logits, sentence_att_scores
+
+
+class HSAN(nn.Module):
+    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len, max_sent_len):
+        super(HSAN, self).__init__()
+        self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
+        # self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, 2*hidden_size, weights_matrix, max_sent_len)
+        self.sentence_multihead_attention = SentenceMultiHeadAttention(2*hidden_size, 4, max_trans_len)
+        self.fcn = nn.Sequential(
+            nn.Linear(2*hidden_size, 64),
+            nn.Tanh(),
+            nn.Dropout(0.8),
+            nn.Linear(64, 2),
+            nn.Tanh(),
+        )
+
+    def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
+        # att1 = self.word_self_attention.forward(inputs, word_pos_indices)
+        att1 = self.word_attention.forward(inputs, lens)
+        att2, sentence_att_scores = self.sentence_multihead_attention.forward(att1, trans_pos_indices)
+        output = self.fcn(att2)
+        return output, sentence_att_scores
+
+
+class HSAN_Subscores(nn.Module):
+    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len, max_sent_len, num_heads, num_classes):
+        super(HSAN_Subscores, self).__init__()
+        self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
+        # self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, 2*hidden_size, weights_matrix, max_sent_len)
+        self.sentence_multihead_attention = SentenceMultiHeadAttention(2*hidden_size, num_heads, max_trans_len)
+        self.fcn = nn.Sequential(
+            nn.Linear(2*hidden_size, 64),
+            nn.Tanh(),
+            nn.Dropout(0.4),
+            nn.Linear(64, num_classes),
+        )
+
+    def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
+        # att1 = self.word_self_attention.forward(inputs, word_pos_indices)
+        att1 = self.word_attention.forward(inputs, lens)
+        att2, sentence_att_scores = self.sentence_multihead_attention.forward(att1, trans_pos_indices)
+        output = self.fcn(att2)
+        return output, sentence_att_scores
 
 class SentenceAttention(nn.Module):
     def __init__(self, sentence_embedding_size, hidden_size):
         super(SentenceAttention, self).__init__()
-        self.gru = nn.LSTM(sentence_embedding_size, hidden_size, batch_first=True, bidirectional=True)
+        self.lstm = nn.LSTM(sentence_embedding_size, hidden_size, batch_first=True, bidirectional=True)
         self.attn = nn.Sequential(
             nn.Linear(2*hidden_size, hidden_size),
             nn.Tanh(),
@@ -417,8 +481,12 @@ class SentenceAttention(nn.Module):
             nn.Tanh()
         )
 
-    def forward(self, inputs):
-        output, hidden = self.gru(inputs)
+    def forward(self, inputs, lens):
+        trans_len = []
+        for l in lens:
+            trans_len.append(len(l))
+
+        output, hidden = self.lstm(inputs)
         attn_weights = self.attn(output)
         attn_scores = F.softmax(attn_weights, 1)
         out = torch.bmm(output.transpose(1, 2), attn_scores).squeeze(2)
@@ -426,13 +494,13 @@ class SentenceAttention(nn.Module):
 
 
 class WordAttention(nn.Module):
-    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix):
+    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, ):
         super(WordAttention, self).__init__()
 
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
         self.embedding.load_state_dict({'weight': weights_matrix})
         self.hidden_size = hidden_size
-        self.gru = nn.LSTM(embedding_size, hidden_size, batch_first=True, bidirectional=True)
+        self.lstm = nn.LSTM(embedding_size, hidden_size, batch_first=True, bidirectional=True)
         self.attn = nn.Sequential(
             nn.Linear(2*hidden_size, hidden_size),
             nn.Tanh(),
@@ -440,16 +508,59 @@ class WordAttention(nn.Module):
             nn.Tanh()
         )
 
-    def forward(self, inputs):
+    def forward(self, inputs, lens):
         embed_output = self.embedding(inputs)
         embed_output_cat = embed_output.view(-1, *embed_output.size()[2:])
-        word_out, word_hidden = self.gru(embed_output_cat)
+        sent_lens = []
+        for l in lens:
+            sent_lens.extend(l)
+        # pck_seq = torch.nn.utils.rnn.pack_padded_sequence(embed_output_cat, sent_lens, batch_first=True, enforce_sorted=False)
+        # word_out_pckd, word_hidden = self.gru(pck_seq)
+        # word_out, sent_lens = torch.nn.utils.rnn.pad_packed_sequence(word_out_pckd, batch_first=True, padding_value=1)
+        word_out, hidden = self.lstm(embed_output_cat)
         attn_weights = self.attn(word_out)
         attn_scores = F.softmax(attn_weights, 1)
         sentence_embedding = torch.sum(word_out*attn_scores, 1)
         return sentence_embedding.reshape(*inputs.size()[0:2], -1)
 
 
+class SentenceMultiHeadAttention(nn.Module):
+    def __init__(self, embed_dim, num_heads, max_trans_len):
+        super(SentenceMultiHeadAttention, self).__init__()
+        self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=0.2, batch_first=True)
+        self.position_encoding = nn.Embedding(max_trans_len, embed_dim, padding_idx=0)
+
+    def forward(self, inputs, positional_indices):
+        # positional_encoding = self.position_encoding(positional_indices)
+        # att_in = inputs + positional_encoding
+        att_in = inputs
+        query = key = value = att_in
+        attn_output, attn_output_weights = self.multihead_attn(query, key, value)
+        attn_output = torch.mean(attn_output, dim=1, keepdim=False)
+        return attn_output, attn_output_weights.squeeze(2)
+
+
+class WordSelfAttention(nn.Module):
+    def __init__(self, vocab_size, embedding_size, out_dim, weights_matrix, max_sent_len):
+        super(WordSelfAttention, self).__init__()
+        self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
+        self.embedding.load_state_dict({'weight': weights_matrix})
+        self.multihead_attn = nn.MultiheadAttention(embedding_size, dropout=0.2, num_heads=1, batch_first=True)
+        self.ffn = nn.Linear(embedding_size, out_dim)
+        self.position_encoding = nn.Embedding(max_sent_len, embedding_size, padding_idx=0)
+
+    def forward(self, inputs, positional_indices):
+        embed_output = self.embedding(inputs)
+        embed_output_cat = embed_output.view(-1, *embed_output.size()[2:])
+        position_encoding = self.position_encoding(positional_indices)
+        position_encoding_cat = position_encoding.view(-1, *position_encoding.size()[2:])
+        attn_in = embed_output_cat + position_encoding_cat
+        query = key = value = attn_in
+        attn_output, attn_output_weights = self.multihead_attn(query, key, value)
+        sent_embedding = torch.mean(attn_output, dim=1, keepdim=False)
+        sent_embedding = sent_embedding.reshape(*inputs.size()[0:2], -1)
+        sent_embedding = self.ffn(sent_embedding)
+        return sent_embedding
 
 
 

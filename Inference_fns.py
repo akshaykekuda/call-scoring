@@ -14,37 +14,76 @@ from torchtext.data.utils import get_tokenizer
 from DataLoader_fns import get_indices
 from sklearn.metrics import classification_report, f1_score, mean_squared_error
 from PrepareDf import prepare_baseline_df
+from matplotlib import pyplot as plt
 
 def get_metrics(dataloader, encoder, scoring_criterion, type):
+    id_arr = []
+    text_arr = []
+    attn_score_arr = []
     pred_arr = []
     target_arr =[]
+    raw_pred_arr = []
     encoder.eval()
+    thresh = 0.5
     with torch.no_grad():
         for batch in tqdm(dataloader):
-            output, scores = encoder(batch['indices'])
+            output, scores = encoder(batch['indices'], batch['lens'], batch['trans_pos_indices'], batch['word_pos_indices'])
             if type == 'mse':
                 pred = output.numpy()
+                target = [sample[scoring_criterion] for sample in batch['scores']]
             elif type == 'bi_class':
-                pred = torch.argmax(output, dim=1).numpy()
-            target = [sample[scoring_criterion] for sample in batch['scores']]
+                if len(scoring_criterion) == 1:
+                    pred = torch.argmax(output, dim=1).numpy()
+                    target = [sample[scoring_criterion] for sample in batch['scores']]
+                else:
+                    raw_pred = torch.sigmoid(output)
+                    pred = ((raw_pred > thresh).long()).tolist()
+                    target = [sample[scoring_criterion].tolist() for sample in batch['scores']]
+            raw_pred_arr.extend(raw_pred.tolist())
             pred_arr.extend(pred)
             target_arr.extend(target)
+            id_arr.extend(batch['id'])
+            text_arr.extend(batch['text'])
+            attn_score_arr.extend(scores.numpy())
+        raw_pred_df = pd.DataFrame(raw_pred_arr, columns=['RawPred ' + category for category in scoring_criterion])
+        pred_df = pd.DataFrame(pred_arr, columns=['Pred ' + category for category in scoring_criterion])
+        target_df = pd.DataFrame(target_arr, columns=['True ' + category for category in scoring_criterion])
+        df = pd.concat((pred_df, target_df, raw_pred_df), axis=1)
+        df['id'] = id_arr
+        df['text'] = text_arr
+        df['scores'] = attn_score_arr
     encoder.train()
     print("Sample predictions")
     print("target:", target_arr[:10])
     print("prediction:", pred_arr[:10])
+
     if type == 'mse':
         mse_error = mean_squared_error(target_arr, pred_arr)
         print("MSE Error = {}".format(mse_error))
-        return mse_error
+        return mse_error, pred_df
 
     elif type == 'bi_class':
-        f1 = f1_score(target_arr, pred_arr)
+        # f1 = f1_score(target_arr, pred_arr)
+        for i in range(len(scoring_criterion)):
+            print("Category:", scoring_criterion[i])
+            print(classification_report(target_df.iloc[:, i], pred_df.iloc[:, i]))
         clr = classification_report(target_arr, pred_arr)
-        print("F1: {}".format(f1))
         print(clr)
-        metrics = {'f1': f1, 'clr': clr}
-        return metrics
+        plot_roc(scoring_criterion, df)
+        return clr, df
+
+
+def plot_roc(scoring_criteria, df):
+    for crit in scoring_criteria:
+        y_pred_proba = df['RawPred ' + crit]
+        y_true = df['True ' + crit]
+        fpr, tpr, _ = metrics.roc_curve(y_true, y_pred_proba)
+        auc = metrics.roc_auc_score(y_true, y_pred_proba).round(2)
+        plt.plot(fpr, tpr, label="{}, auc={}".format(crit, auc))
+        plt.xlabel("False Positivity Rate, bad calls class 1 ")
+        plt.xlabel("True Positivity Rate, bad calls class 1")
+        plt.legend(loc=4)
+    plt.show()
 
 
 def predict_baseline_metrics(test_df, type):
@@ -70,11 +109,11 @@ def predict_baseline_metrics(test_df, type):
       for call_id in test_df.index:
         if test_df.loc[call_id, 'WorkgroupQueue'] == 'Sales':
           if call_id in sales_df.index:
-            df.loc[call_id, 'Predicted Score'] = (1 - sales_df.loc[call_id, 'score'])*100
+            df.loc[call_id, 'Predicted Score'] = (1 - sales_df.loc[call_id, 'score'])
             df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']
         elif test_df.loc[call_id, 'WorkgroupQueue'] == 'Customer Service':
           if call_id in cs_df.index:
-            df.loc[call_id, 'Predicted Score'] = (1 - cs_df.loc[call_id, 'score'])*100
+            df.loc[call_id, 'Predicted Score'] = (1 - cs_df.loc[call_id, 'score'])
             df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']
       mse_error = mean_squared_error(df['Overall Score'].tolist(), df['Predicted Score'].tolist())
       print("MSE Error = {}".format(mse_error))

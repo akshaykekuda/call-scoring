@@ -28,13 +28,15 @@ import time
 np.random.seed(0)
 torch.manual_seed(0)
 
-
+word_embedding_pt = dict(glove='/Users/akshaykekuda/Desktop/CSR-SA/word_embeddings/glove.w2v.txt',
+                         w2v='/Users/akshaykekuda/Desktop/CSR-SA/word_embeddings/custom_w2v_100d',
+                         fasttext='/Users/akshaykekuda/Desktop/CSR-SA/word_embeddings/fasttext_300d.bin')
 def _parse_args():
     """
     Command-line arguments to the system.
     :return: the parsed args bundle
     """
-    parser = argparse.ArgumentParser(description='MainCalls_Glove.py')
+    parser = argparse.ArgumentParser(description='MainCalls.py')
 
     # General system running and configuration options
     parser.add_argument('--model', type=str, default='Category', help='model to run')
@@ -42,11 +44,42 @@ def _parse_args():
     parser.add_argument('--batch_size', type=int, default=1, help='batch_size')
     parser.add_argument('--epochs', type=int, default=20, help='epochs to run')
     parser.add_argument('--train_samples', type=int, default=3500, help='number of samples for training')
+    parser.add_argument('--word_embedding', type=str, default='glove', help='word embedding to use')
+    parser.add_argument('--attention', type=str, default='han', help='attention mechanism to use' )
 
-    # Feel free to add other hyperparameters for your input dimension, etc. to control your network
-    # 50-200 might be a good range to start with for embedding and LSTM sizes
     args = parser.parse_args()
     return args
+
+
+def predict_all_subscores(trainer, dataloader_transcripts_test, test_df):
+
+    scoring_criteria = ['Cross Selling', 'Creates Incentive', 'Product Knowledge', 'Education', 'Processes']
+    model = trainer.train_all_subscores_model(scoring_criteria)
+    torch.save(model, "call_encoder_bi_class.model")
+    # print('Dev Accuracy for Call Transcripts dataset:')
+    # get_metrics(dataloader_transcripts_dev, model, 'Category', type='bi_class')
+    # print('Dev Baseline Model Metrics:')
+    # predict_baseline_metrics(dev_df, type='bi_class')
+    print('Test Metrics for Call Transcripts dataset  is:')
+    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, type='bi_class')
+    plot_roc(scoring_criteria, pred_df)
+    pred_df.to_csv('all_subscores_pred_test.csv')
+    print('Test Baseline Model Metrics:')
+    predict_baseline_metrics(test_df, type='bi_class')
+    return metrics
+
+
+def plot_roc(scoring_criteria, df):
+    for crit in scoring_criteria:
+        y_pred_proba = df['RawPred ' + crit]
+        y_true = df['True ' + crit]
+        fpr, tpr, _ = metrics.roc_curve(y_true, y_pred_proba)
+        auc = metrics.roc_auc_score(y_true, y_pred_proba).round(2)
+        plt.plot(fpr, tpr, label="{}, auc={}".format(crit, auc))
+        plt.xlabel("False Positivity Rate, bad calls class 1 ")
+        plt.xlabel("True Positivity Rate, bad calls class 1")
+        plt.legend(loc=4)
+    plt.show()
 
 
 def predict_overall_category(trainer, dataloader_transcripts_test, test_df):
@@ -79,6 +112,14 @@ def predict_overall_score(trainer, dataloader_transcripts_test, test_df):
     return mse
 
 
+def get_max_len(df):
+    def fun(sent):
+        return len(sent.split())
+    max_trans_len = np.max(df.text.apply(lambda x: len(x.split("\n"))))
+    max_sent_len = np.max(df.text.apply(lambda x: max(map(fun, x.split('\n')))))
+    return max_trans_len, max_sent_len
+
+
 def run_cross_validation(train_df, test_df):
     kfold_results = []
     dataset_transcripts_test = CallDataset(test_df)
@@ -87,9 +128,13 @@ def run_cross_validation(train_df, test_df):
         t_df = train_df.iloc[train].copy()
         # t_df = t_df.loc[t_df.text.apply(lambda x: len(x.split('\n'))).sort_values().index]
         dev_df = train_df.iloc[dev].copy()
+        subscore_dist = t_df.loc[:, ['Greeting', 'Professionalism', 'Confidence',
+                    'Cross Selling', 'Retention', 'Creates Incentive', 'Product Knowledge',
+                    'Documentation', 'Education', 'Processes']].apply(lambda x: x.value_counts())
+        print("Subscore distribution count in Training set\n", subscore_dist)
         dataset_transcripts_train = CallDataset(t_df)
         dataset_transcripts_dev = CallDataset(dev_df)
-
+        max_trans_len, max_sent_len = get_max_len(train_df)
         vocab = dataset_transcripts_train.get_vocab()
         vocab.insert_token('<pad>', 0)
         vocab.insert_token('<UNK>', 0)
@@ -105,7 +150,7 @@ def run_cross_validation(train_df, test_df):
                                                  num_workers=0, collate_fn=collate)
         # model = Word2Vec.load('custom_w2v_100d')
 
-        model = Word2VecKeyedVectors.load_word2vec_format('../word_embeddings/glove.w2v.txt')
+        model = Word2VecKeyedVectors.load_word2vec_format(word_embedding_pt[args.word_embedding])
         vec_size = model.vector_size
         vocab_size = len(vocab)
         weights_matrix = np.zeros((vocab_size, vec_size))
@@ -119,11 +164,13 @@ def run_cross_validation(train_df, test_df):
         weights_matrix[0] = np.mean(weights_matrix, axis=0)
         weights_matrix = torch.tensor(weights_matrix)
         trainer = TrainModel(dataloader_transcripts_train, dataloader_transcripts_dev, vocab_size, vec_size,
-                             weights_matrix, args)
+                             weights_matrix, args, max_trans_len, max_sent_len)
         if args.model == 'Category':
             metrics = predict_overall_category(trainer, dataloader_transcripts_test, test_df)
         elif args.model == 'CombinedPercentileScore':
             mse = predict_overall_score(trainer, dataloader_transcripts_test, test_df)
+        elif args.model == 'AllSubScores':
+            metrics = predict_all_subscores(trainer, dataloader_transcripts_test, test_df)
         break
     return kfold_results
 
@@ -135,7 +182,8 @@ if __name__ == "__main__":
         "/Users/akshaykekuda/Desktop/CSR-SA/ScoringDetail_viw_all_subscore.p", workgroup=args.workgroup)
     transcript_score_df = prepare_trancript_score_df(score_df, q_text)
     train_df, test_df = train_test_split(transcript_score_df, test_size=0.20)
-    train_df = balance_df(train_df, args.train_samples)
+    if args.train_samples>0:
+        train_df = balance_df(train_df, args.train_samples)
     kfold_results = run_cross_validation(train_df, test_df)
     # avg_tuple = [sum(y) / len(y) for y in zip(*kfold_results)]
     # print("Overall accuracy={} Overall F1 score={}".format(avg_tuple[0], avg_tuple[1]))

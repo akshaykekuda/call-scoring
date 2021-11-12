@@ -15,14 +15,16 @@ import re
 import random
 
 import numpy as np
-# from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 import torch
 from tqdm import tqdm
 from Models import *
-
 from Inference_fns import get_metrics, get_regression_metrics
 from sklearn.utils import class_weight
+from torch.optim.lr_scheduler import MultiStepLR
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class TrainYelpModel():
     def __init__(self, dataloader_train, dataloader_dev, vocab_size, vec_size, weights_matrix):
@@ -49,7 +51,6 @@ class TrainYelpModel():
                 encoder.zero_grad()
                 classifier.zero_grad()
                 loss = 0
-
                 output, hidden = encoder(batch['indices'])
                 output = output[:, -1, :]
 
@@ -69,13 +70,18 @@ class TrainYelpModel():
 
         return encoder, classifier
 
+
 class TrainModel():
-    def __init__(self, dataloader_train, dataloader_dev, vocab_size, vec_size, weights_matrix):
+    def __init__(self, dataloader_train, dataloader_dev, vocab_size, vec_size, weights_matrix, args, max_trans_len, max_sent_len):
         self.dataloader_train = dataloader_train
         self.dataloader_dev = dataloader_dev
         self.vocab_size = vocab_size
         self.vec_size = vec_size
         self.weights_matrix = weights_matrix
+        self.args = args
+        self.max_trans_len = max_trans_len
+        self.max_sent_len = max_sent_len
+
 
     def train_cross_selling_model(self):
         x = [batch['subscores'] for batch in self.dataloader_train]
@@ -83,10 +89,11 @@ class TrainModel():
         for b in x:
             arr.extend(b)
         y_train = [sample['Cross Selling'].item() for sample in arr]
-        class_weights = class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train), y=y_train)
+        class_weights = class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train),
+                                                          y=y_train)
         # class_weights = [0.8, 0.2]
         class_weights = torch.tensor(class_weights, dtype=torch.float)
-        hidden_size =64
+        hidden_size = 64
         encoder = HAN(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
         criterion = nn.CrossEntropyLoss(weight=class_weights)
         encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.0001)
@@ -96,65 +103,112 @@ class TrainModel():
         return model
 
     def train_overall_model(self):
+        scoring_criteria = 'Category'
         x = [batch['scores'] for batch in self.dataloader_train]
         arr = []
         for b in x:
             arr.extend(b)
-        y_train = [sample['Category'].item() for sample in arr]
-        class_weights = class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train), y=y_train)
+        y_train = [sample[scoring_criteria].item() for sample in arr]
+        class_weights = class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train),
+                                                          y=y_train)
         # class_weights = [0.8, 0.2]
         class_weights = torch.tensor(class_weights, dtype=torch.float)
-        hidden_size =64
-        encoder = HAN(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
+        hidden_size = 64
+        if self.args.attention == 'han':
+            encoder = HAN(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
+        elif self.args.attention == 'hsan':
+            encoder = HSAN(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix, self.max_trans_len, self.max_sent_len)
         criterion = nn.CrossEntropyLoss(weight=class_weights)
         encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.0001)
-        epochs = 10
-        model = self.train_model(epochs, encoder, criterion, encoder_optimizer,
-                                 scoring_criterion="Category", type='bi_class')
+        scheduler = MultiStepLR(encoder_optimizer, milestones=[3, 10], gamma=0.1)
+        epochs = self.args.epochs
+        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, scheduler,
+                                 scoring_criterion=scoring_criteria, type='bi_class')
+        return model
+
+    def train_all_subscores_model(self, scoring_criteria):
+        x = [batch['scores'] for batch in self.dataloader_train]
+        arr = []
+        pos_wt = []
+        for b in x:
+            arr.extend(b)
+        for sub_category in scoring_criteria:
+            y_train = [sample[sub_category].item() for sample in arr]
+            class_weights = class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train),
+                                                              y=y_train)
+            pos_wt.append(class_weights[1])
+
+        positive_weights = torch.tensor(pos_wt, dtype=torch.float)
+        hidden_size = 128
+        num_heads = 4
+        if self.args.attention == 'han':
+            encoder = HAN_Subscores(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
+        elif self.args.attention == 'hsan':
+            encoder = HSAN_Subscores(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix,
+                                     self.max_trans_len, self.max_sent_len, num_heads, num_classes=len(scoring_criteria))
+        criterion = nn.BCEWithLogitsLoss(pos_weight=positive_weights)
+        encoder_optimizer = optim.Adam(encoder.parameters(), lr=1e-3)
+        scheduler = MultiStepLR(encoder_optimizer, milestones=[10, 15], gamma=0.1)
+        epochs = self.args.epochs
+        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, scheduler,
+                                 scoring_criterion=scoring_criteria, type='bi_class')
         return model
 
     def train_linear_regressor(self):
         hidden_size = 64
-        encoder = HAN_Regression(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
-        for p in encoder.parameters():
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)
+        # encoder = HAN_Regression(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
+        encoder = HSAN_Regression(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix, self.max_trans_len, self.max_sent_len)
+        # for p in encoder.parameters():
+        #     if p.dim() > 1:
+        #         nn.init.xavier_uniform_(p)
         criterion = nn.MSELoss()
-        encoder_optimizer = optim.Adam(encoder.parameters(), lr=0.01)
-        scheduler = MultiStepLR(optimizer, milestones=[10, 30], gamma=0.1)
-        epochs = 50
-        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, scoring_criterion="CombinedPercentileScore", type='mse')
+        encoder_optimizer = optim.Adam(encoder.parameters(), lr=1e-4)
+        scheduler = MultiStepLR(encoder_optimizer, milestones=[10, 20], gamma=0.1)
+        epochs = self.args.epochs
+        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, scheduler,
+                                 scoring_criterion="CombinedPercentileScore", type='mse')
         return model
 
-    def train_model(self, epochs, encoder, criterion, encoder_optimizer, scoring_criterion, type):
+    def train_model(self, epochs, encoder, criterion, encoder_optimizer, scheduler, scoring_criterion, type):
         print("inside train model")
         print(len(self.dataloader_train))
         train_acc = []
         dev_acc = []
         encoder.train()
+        loss_arr = []
         for n in range(epochs):
             epoch_loss = 0
             for batch in tqdm(self.dataloader_train):
                 loss = 0
-                try:
-                    output, scores = encoder(batch['indices'])
-                except IndexError:
-                    print(batch['indices'])
+                output, scores = encoder(batch['indices'], batch['lens'], batch['trans_pos_indices'], batch['word_pos_indices'])
                 if type == 'mse':
-                    target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']], dtype=torch.float).view(-1, 1)
-                elif type =='bi_class':
-                    target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']], dtype=torch.long)
+                    target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']],
+                                          dtype=torch.float).view(-1, 1)
+                elif type == 'bi_class':
+                    if criterion.__str__() =='BCEWithLogitsLoss()':
+                        target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']],
+                                              dtype=torch.float)
+                    else:
+                        target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']], dtype=torch.long)
                 loss += criterion(output, target)
                 encoder_optimizer.zero_grad()
                 epoch_loss += loss.detach().item()
                 loss.backward()
                 encoder_optimizer.step()
-            print("Average loss at epoch {}: {}".format(n, epoch_loss/len(self.dataloader_train)))
-            if n%5 ==4:
-                print("Training MSE at end of epoch {}:".format(n))
-                get_metrics(self.dataloader_train, encoder, scoring_criterion, type)
-                print("Dev MSE at end of epoch {}:".format(n))
-                get_metrics(self.dataloader_dev, encoder, scoring_criterion, type)
-        print(train_acc, dev_acc)
+            scheduler.step()
+            avg_epoch_loss = epoch_loss / len(self.dataloader_train)
+            print("Average loss at epoch {}: {}".format(n, avg_epoch_loss))
+            loss_arr.append(avg_epoch_loss)
+            if n % 5 == 4:
+                print("Training metric at end of epoch {}:".format(n))
+                train_metrics, _ = get_metrics(self.dataloader_train, encoder, scoring_criterion, type)
+                print("Dev metric at end of epoch {}:".format(n))
+                dev_metrics, _ = get_metrics(self.dataloader_dev, encoder, scoring_criterion, type)
+                if type == 'mse':
+                    train_acc.append(train_metrics)
+                    dev_acc.append(dev_metrics)
+        plt.plot(loss_arr)
+        plt.show()
+        print("Training Evaluation Metrics: ", train_acc)
+        print("Dev Evaluation Metrics: ", dev_acc)
         return encoder
-
