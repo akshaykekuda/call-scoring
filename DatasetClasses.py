@@ -93,6 +93,8 @@ class CallDataset(Dataset):
             counter.update(words)
 
         self.vocab = vocab(counter)
+        self.vocab.insert_token('<pad>', 0)
+        self.vocab.insert_token('<UNK>', 0)
         self.vocab.set_default_index(0)
         self.df['text'] = clean_files
 
@@ -110,3 +112,9 @@ class CallDataset(Dataset):
 
     def get_vocab(self):
         return self.vocab
+
+    def save_vocab(self, path):
+        import pickle
+        output = open(path, 'wb')
+        pickle.dump(self.vocab, output)
+        output.close()

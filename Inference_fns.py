@@ -15,7 +15,6 @@ from DataLoader_fns import get_indices
 from sklearn.metrics import classification_report, f1_score, mean_squared_error
 from PrepareDf import prepare_baseline_df
 from matplotlib import pyplot as plt
-from sklearn import metrics
 
 def get_metrics(dataloader, encoder, scoring_criterion, type):
     id_arr = []
@@ -33,12 +32,9 @@ def get_metrics(dataloader, encoder, scoring_criterion, type):
                 pred = output.numpy()
                 target = [sample[scoring_criterion] for sample in batch['scores']]
             elif type == 'bi_class':
-                if scoring_criterion == 'Product Knowledge':
-                    probs = F.softmax(output, dim=1)
-                    max_vals = torch.max(probs, dim=1)
-                    raw_pred = max_vals[0].tolist()
-                    pred = max_vals[1].tolist()
-                    target = [sample[scoring_criterion[0]] for sample in batch['scores']]
+                if len(scoring_criterion) == 1:
+                    pred = torch.argmax(output, dim=1).numpy()
+                    target = [sample[scoring_criterion] for sample in batch['scores']]
                 else:
                     raw_pred = torch.sigmoid(output)
                     pred = ((raw_pred > thresh).long()).tolist()
@@ -72,7 +68,8 @@ def get_metrics(dataloader, encoder, scoring_criterion, type):
             print("Category:", scoring_criterion[i])
             print(classification_report(target_df.iloc[:, i], pred_df.iloc[:, i]))
         clr = classification_report(target_arr, pred_arr)
-        # plot_roc(scoring_criterion, df)
+        print(clr)
+        plot_roc(scoring_criterion, df)
         return clr, df
 
 
@@ -82,10 +79,9 @@ def plot_roc(scoring_criteria, df):
         y_true = df['True ' + crit]
         fpr, tpr, _ = metrics.roc_curve(y_true, y_pred_proba)
         auc = metrics.roc_auc_score(y_true, y_pred_proba).round(2)
-        print("AUC for {} = {}".format(crit, auc))
         plt.plot(fpr, tpr, label="{}, auc={}".format(crit, auc))
         plt.xlabel("False Positivity Rate, bad calls class 1 ")
-        plt.ylabel("True Positivity Rate, bad calls class 1")
+        plt.xlabel("True Positivity Rate, bad calls class 1")
         plt.legend(loc=4)
     plt.show()
 
