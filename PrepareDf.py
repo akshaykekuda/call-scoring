@@ -2,7 +2,6 @@ import pandas as pd
 import os
 import pickle5 as pickle
 
-transcripts_dir = 'transcriptions/text_only'
 
 def prepare_score_df(path_to_p, workgroup):
     with open(path_to_p, 'rb') as file:
@@ -60,7 +59,7 @@ def prepare_score_df(path_to_p, workgroup):
 
     return score_df, score_comment_df, q_text
 
-def prepare_trancript_score_df(score_df, q_text):
+def prepare_trancript_score_df(score_df, q_text, transcripts_dir):
     df = pd.DataFrame(columns=['text', 'file_name'])
     for file in os.listdir(transcripts_dir):
         if file.endswith('.txt'):

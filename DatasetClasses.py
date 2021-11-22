@@ -18,6 +18,7 @@ from torchtext.data.utils import get_tokenizer
 import nltk
 from nltk.tokenize import sent_tokenize
 from Preprocessing import preprocess_transcript
+import pickle
 
 scoring_criteria = ['Greeting', 'Professionalism', 'Confidence',
                     'Cross Selling', 'Retention', 'Creates Incentive', 'Product Knowledge',
@@ -49,6 +50,8 @@ class YelpDataset(Dataset):
               counter.update(words)
 
         self.vocab = vocab(counter)
+        self.vocab.insert_token('<pad>', 0)
+        self.vocab.insert_token('<UNK>', 0)
         self.vocab.set_default_index(0)
         self.df['category'] = binary_cat
         self.df['text'] = reviews
@@ -68,6 +71,11 @@ class YelpDataset(Dataset):
 
     def get_vocab(self):
       return self.vocab
+    def save_vocab(self, path):
+        import pickle
+        output = open(path, 'wb')
+        pickle.dump(self.vocab, output)
+        output.close()
 
 
 class CallDataset(Dataset):
@@ -93,6 +101,8 @@ class CallDataset(Dataset):
             counter.update(words)
 
         self.vocab = vocab(counter)
+        self.vocab.insert_token('<pad>', 0)
+        self.vocab.insert_token('<UNK>', 0)
         self.vocab.set_default_index(0)
         self.df['text'] = clean_files
 
@@ -110,3 +120,8 @@ class CallDataset(Dataset):
 
     def get_vocab(self):
         return self.vocab
+
+    def save_vocab(self, path):
+        output = open(path, 'wb')
+        pickle.dump(self.vocab, output)
+        output.close()

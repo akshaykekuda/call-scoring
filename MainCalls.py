@@ -13,12 +13,11 @@ import os
 
 from DatasetClasses import CallDataset
 from torch.utils.data import DataLoader
+from DataLoader_fns import Collate
 from gensim.models import Word2Vec
 from gensim.models.keyedvectors import Word2VecKeyedVectors
 from gensim.models import KeyedVectors
-from DataLoader_fns import save_vocab
 from TrainModel import TrainModel
-from DataLoader_fns import collate
 from Inference_fns import *
 from PrepareDf import *
 from sklearn.model_selection import train_test_split, KFold
@@ -37,6 +36,9 @@ word_embedding_pt = dict(glove='../word_embeddings/glove_word_vectors',
                          fasttext='../word_embeddings/fasttext_300d.bin')
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 
+global vocab
+
+
 def _parse_args():
     """
     Command-line arguments to the system.
@@ -48,15 +50,16 @@ def _parse_args():
     parser.add_argument('--model', type=str, default='AllSubScores', help='model to run')
     parser.add_argument('--workgroup', type=str, default='all', help='workgroup of calls to score')
     parser.add_argument('--batch_size', type=int, default=1, help='batch_size')
-    parser.add_argument('--epochs', type=int, default=30, help='epochs to run')
-    parser.add_argument('--train_samples', type=int, default=3500, help='number of samples for training')
+    parser.add_argument('--epochs', type=int, default=1, help='epochs to run')
+    parser.add_argument('--train_samples', type=int, default=50, help='number of samples for training')
     parser.add_argument('--word_embedding', type=str, default='glove', help='word embedding to use')
     parser.add_argument('--attention', type=str, default='hsan', help='attention mechanism to use' )
-    parser.add_argument('--save_path', type=str, default='', help='path to save checkpoints')
+    parser.add_argument('--save_path', type=str, default='test', help='path to save checkpoints')
     parser.add_argument('--num_heads', type=int, default=4, help='number of attention heads')
     parser.add_argument('--model_size', type=int, default=128, help='model size')
-    parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
+    parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
     parser.add_argument('--dropout', type=float, default=0.2, help='dropout rate')
+    parser.add_argument('--trans_path', type=str, default='transcriptions/text_only', help='link to transcripts')
 
     args = parser.parse_args()
     return args
@@ -73,11 +76,12 @@ def predict_all_subscores(trainer, dataloader_transcripts_test, test_df):
     # predict_baseline_metrics(dev_df, type='bi_class')
     print('Test Metrics for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, type='bi_class')
-    plot_roc(scoring_criteria, pred_df)
+    plot_roc(scoring_criteria, pred_df, save_path+'auc.png')
     pred_df.to_pickle(save_path+'all_subscores_pred_test.p')
     # print('Test Baseline Model Metrics:')
     # predict_baseline_metrics(test_df, type='bi_class')
     return metrics
+
 
 def predict_product_knowledge(trainer, dataloader_transcripts_test, test_df):
 
@@ -104,7 +108,6 @@ def predict_cross_selling(trainer, dataloader_transcripts_test, test_df):
     # print('Test Baseline Model Metrics:')
     # predict_baseline_metrics(test_df, type='bi_class')
     return metrics
-    
 
 
 def predict_overall_category(trainer, dataloader_transcripts_test, test_df):
@@ -162,18 +165,16 @@ def run_cross_validation(train_df, test_df):
         dataset_transcripts_dev = CallDataset(dev_df)
         max_trans_len, max_sent_len = get_max_len(train_df)
         vocab = dataset_transcripts_train.get_vocab()
-        vocab.insert_token('<pad>', 0)
-        vocab.insert_token('<UNK>', 0)
-        save_vocab(vocab, 'vocab')
+        dataset_transcripts_train.save_vocab('vocab')
 
         batch_size = args.batch_size
-
+        c = Collate(vocab)
         dataloader_transcripts_train = DataLoader(dataset_transcripts_train, batch_size=batch_size, shuffle=True,
-                                                  num_workers=4, collate_fn=collate)
+                                                  num_workers=4, collate_fn=c.collate)
         dataloader_transcripts_dev = DataLoader(dataset_transcripts_dev, batch_size=batch_size, shuffle=False,
-                                                num_workers=4, collate_fn=collate)
+                                                num_workers=4, collate_fn=c.collate)
         dataloader_transcripts_test = DataLoader(dataset_transcripts_test, batch_size=batch_size, shuffle=False,
-                                                 num_workers=4, collate_fn=collate)
+                                                 num_workers=4, collate_fn=c.collate)
         # model = Word2Vec.load('custom_w2v_100d')
 
         model = KeyedVectors.load(word_embedding_pt[args.word_embedding], mmap='r')
@@ -218,7 +219,7 @@ if __name__ == "__main__":
         kf = KFold(n_splits=5, shuffle=True)
         score_df, score_comment_df, q_text = prepare_score_df(
             path_to_handscored_p, workgroup=args.workgroup)
-        transcript_score_df = prepare_trancript_score_df(score_df, q_text)
+        transcript_score_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
         train_df, test_df = train_test_split(transcript_score_df, test_size=0.15)
         if args.train_samples>0:
             train_df = balance_df(train_df, args.train_samples)

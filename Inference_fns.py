@@ -11,7 +11,7 @@ from tqdm import tqdm
 import torch
 from Preprocessing import preprocess_transcript
 from torchtext.data.utils import get_tokenizer
-from DataLoader_fns import get_indices
+# from DataLoader_fns import get_indices
 from sklearn.metrics import classification_report, f1_score, mean_squared_error
 from PrepareDf import prepare_baseline_df
 from matplotlib import pyplot as plt
@@ -76,7 +76,7 @@ def get_metrics(dataloader, encoder, scoring_criterion, type):
         return clr, df
 
 
-def plot_roc(scoring_criteria, df):
+def plot_roc(scoring_criteria, df, path):
     for crit in scoring_criteria:
         y_pred_proba = df['RawPred ' + crit]
         y_true = df['True ' + crit]
@@ -88,6 +88,7 @@ def plot_roc(scoring_criteria, df):
         plt.ylabel("True Positivity Rate, bad calls class 1")
         plt.legend(loc=4)
     plt.show()
+    plt.savefig(path)
 
 
 def predict_baseline_metrics(test_df, type):
