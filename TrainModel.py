@@ -137,17 +137,44 @@ class TrainModel():
             class_weights = class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train),
                                                               y=y_train)
             pos_wt.append(class_weights[1])
-
         positive_weights = torch.tensor(pos_wt, dtype=torch.float)
-        hidden_size = 128
-        num_heads = 4
         if self.args.attention == 'han':
-            encoder = HAN_Subscores(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix)
+            encoder = HAN_Subscores(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix)
         elif self.args.attention == 'hsan':
-            encoder = HSAN_Subscores(self.vocab_size, self.vec_size, hidden_size, self.weights_matrix,
-                                     self.max_trans_len, self.max_sent_len, num_heads, num_classes=len(scoring_criteria))
+            encoder = HSAN_Subscores(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
+                                     self.max_trans_len, self.max_sent_len, self.args.num_heads, 
+                                     num_classes=len(scoring_criteria), dropout_rate=self.args.dropout)
+        print(encoder)
         criterion = nn.BCEWithLogitsLoss(pos_weight=positive_weights)
-        encoder_optimizer = optim.Adam(encoder.parameters(), lr=1e-3)
+        encoder_optimizer = optim.Adam(encoder.parameters(), lr=self.args.lr)
+        scheduler = MultiStepLR(encoder_optimizer, milestones=[10, 15], gamma=0.1)
+        epochs = self.args.epochs
+        model = self.train_model(epochs, encoder, criterion, encoder_optimizer, scheduler,
+                                 scoring_criterion=scoring_criteria, type='bi_class')
+        return model
+
+    def train_prod_knowledge_model(self, scoring_criteria):
+        x = [batch['scores'] for batch in self.dataloader_train]
+        arr = []
+        pos_wt = []
+        for b in x:
+            arr.extend(b)
+        for sub_category in scoring_criteria:
+            y_train = [sample[sub_category].item() for sample in arr]
+            class_weights = class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train),
+                                                              y=y_train)
+        class_weights = torch.tensor(class_weights, dtype=torch.float)
+        # positive_weights = torch.tensor(pos_wt, dtype=torch.float)
+        if self.args.attention == 'han':
+            encoder = HAN_Subscores(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix)
+        elif self.args.attention == 'hsan':
+            encoder = HSAN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
+                                     self.max_trans_len, self.max_sent_len, self.args.num_heads, 
+                                     num_classes=2, dropout_rate=self.args.dropout)
+        print(encoder)
+        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        print("using cross entropy loss")
+        encoder_optimizer = optim.Adam(encoder.parameters(), lr=self.args.lr)
         scheduler = MultiStepLR(encoder_optimizer, milestones=[10, 15], gamma=0.1)
         epochs = self.args.epochs
         model = self.train_model(epochs, encoder, criterion, encoder_optimizer, scheduler,
@@ -171,7 +198,6 @@ class TrainModel():
 
     def train_model(self, epochs, encoder, criterion, encoder_optimizer, scheduler, scoring_criterion, type):
         print("inside train model")
-        print(len(self.dataloader_train))
         train_acc = []
         dev_acc = []
         encoder.train()
@@ -189,7 +215,8 @@ class TrainModel():
                         target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']],
                                               dtype=torch.float)
                     else:
-                        target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']], dtype=torch.long)
+                        target = torch.tensor([sample[scoring_criterion[0]] for sample in batch['scores']], dtype=torch.long)
+                print(output, target)
                 loss += criterion(output, target)
                 encoder_optimizer.zero_grad()
                 epoch_loss += loss.detach().item()
@@ -207,6 +234,7 @@ class TrainModel():
                 if type == 'mse':
                     train_acc.append(train_metrics)
                     dev_acc.append(dev_metrics)
+        print("Epoch Losses:", loss_arr)
         plt.plot(loss_arr)
         plt.show()
         print("Training Evaluation Metrics: ", train_acc)

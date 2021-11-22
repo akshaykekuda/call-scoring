@@ -429,16 +429,20 @@ class HAN(nn.Module):
 
 
 class HSAN(nn.Module):
-    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len, max_sent_len):
+    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len, 
+                max_sent_len, num_heads, num_classes, dropout_rate):
         super(HSAN, self).__init__()
         self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
         # self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, 2*hidden_size, weights_matrix, max_sent_len)
-        self.sentence_multihead_attention = SentenceMultiHeadAttention(2*hidden_size, 4, max_trans_len)
+        self.sentence_multihead_attention = SentenceMultiHeadAttention(2*hidden_size, num_heads, max_trans_len, dropout_rate)
         self.fcn = nn.Sequential(
-            nn.Linear(2*hidden_size, 64),
+            nn.Linear(2*hidden_size, 1024),
             nn.Tanh(),
-            nn.Dropout(0.8),
-            nn.Linear(64, 2),
+            nn.Dropout(dropout_rate),
+            nn.Linear(1024, 256),
+            nn.Tanh(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(256, 2),
             nn.Tanh(),
         )
 
@@ -451,16 +455,20 @@ class HSAN(nn.Module):
 
 
 class HSAN_Subscores(nn.Module):
-    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len, max_sent_len, num_heads, num_classes):
+    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len, 
+                max_sent_len, num_heads, num_classes, dropout_rate):
         super(HSAN_Subscores, self).__init__()
         self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
-        # self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, 2*hidden_size, weights_matrix, max_sent_len)
-        self.sentence_multihead_attention = SentenceMultiHeadAttention(2*hidden_size, num_heads, max_trans_len)
+        # self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, 2*hidden_size, weights_matrix, max_sent_len, dropout_rate)
+        self.sentence_multihead_attention = SentenceMultiHeadAttention(2*hidden_size, num_heads, max_trans_len, dropout_rate)
         self.fcn = nn.Sequential(
-            nn.Linear(2*hidden_size, 64),
-            nn.Tanh(),
-            nn.Dropout(0.4),
-            nn.Linear(64, num_classes),
+            nn.Linear(2*hidden_size,1024),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(1024, 256),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(256, num_classes),
         )
 
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
@@ -525,27 +533,28 @@ class WordAttention(nn.Module):
 
 
 class SentenceMultiHeadAttention(nn.Module):
-    def __init__(self, embed_dim, num_heads, max_trans_len):
+    def __init__(self, embed_dim, num_heads, max_trans_len, dropout_rate):
         super(SentenceMultiHeadAttention, self).__init__()
-        self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=0.2, batch_first=True)
+        self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout_rate, batch_first=True)
         self.position_encoding = nn.Embedding(max_trans_len, embed_dim, padding_idx=0)
 
     def forward(self, inputs, positional_indices):
         # positional_encoding = self.position_encoding(positional_indices)
         # att_in = inputs + positional_encoding
+        padding_mask = (positional_indices == 0)
         att_in = inputs
         query = key = value = att_in
-        attn_output, attn_output_weights = self.multihead_attn(query, key, value)
+        attn_output, attn_output_weights = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
         attn_output = torch.mean(attn_output, dim=1, keepdim=False)
         return attn_output, attn_output_weights.squeeze(2)
 
 
 class WordSelfAttention(nn.Module):
-    def __init__(self, vocab_size, embedding_size, out_dim, weights_matrix, max_sent_len):
+    def __init__(self, vocab_size, embedding_size, out_dim, weights_matrix, max_sent_len, dropout_rate):
         super(WordSelfAttention, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
         self.embedding.load_state_dict({'weight': weights_matrix})
-        self.multihead_attn = nn.MultiheadAttention(embedding_size, dropout=0.2, num_heads=1, batch_first=True)
+        self.multihead_attn = nn.MultiheadAttention(embedding_size, dropout=dropout_rate, num_heads=1, batch_first=True)
         self.ffn = nn.Linear(embedding_size, out_dim)
         self.position_encoding = nn.Embedding(max_sent_len, embedding_size, padding_idx=0)
 

@@ -7,11 +7,15 @@ Original file is located at
     https://colab.research.google.com/drive/13U7IVc0TcKMzzszxaQt-jxqM-2UEAvah
 """
 import argparse
+import datetime
+import sys
+import os
 
 from DatasetClasses import CallDataset
 from torch.utils.data import DataLoader
 from gensim.models import Word2Vec
 from gensim.models.keyedvectors import Word2VecKeyedVectors
+from gensim.models import KeyedVectors
 from DataLoader_fns import save_vocab
 from TrainModel import TrainModel
 from DataLoader_fns import collate
@@ -24,13 +28,15 @@ import numpy as np
 import torch
 import pandas as pd
 import time
-
 np.random.seed(0)
 torch.manual_seed(0)
 
-word_embedding_pt = dict(glove='/Users/akshaykekuda/Desktop/CSR-SA/word_embeddings/glove.w2v.txt',
-                         w2v='/Users/akshaykekuda/Desktop/CSR-SA/word_embeddings/custom_w2v_100d',
-                         fasttext='/Users/akshaykekuda/Desktop/CSR-SA/word_embeddings/fasttext_300d.bin')
+path_to_handscored_p = 'ScoringDetail_viw_all_subscore.p' 
+word_embedding_pt = dict(glove='../word_embeddings/glove_word_vectors',
+                         w2v='../word_embeddings/custom_w2v_100d',
+                         fasttext='../word_embeddings/fasttext_300d.bin')
+pd.set_option("display.max_rows", None, "display.max_columns", None)
+
 def _parse_args():
     """
     Command-line arguments to the system.
@@ -39,13 +45,18 @@ def _parse_args():
     parser = argparse.ArgumentParser(description='MainCalls.py')
 
     # General system running and configuration options
-    parser.add_argument('--model', type=str, default='Category', help='model to run')
+    parser.add_argument('--model', type=str, default='AllSubScores', help='model to run')
     parser.add_argument('--workgroup', type=str, default='all', help='workgroup of calls to score')
     parser.add_argument('--batch_size', type=int, default=1, help='batch_size')
-    parser.add_argument('--epochs', type=int, default=20, help='epochs to run')
+    parser.add_argument('--epochs', type=int, default=30, help='epochs to run')
     parser.add_argument('--train_samples', type=int, default=3500, help='number of samples for training')
     parser.add_argument('--word_embedding', type=str, default='glove', help='word embedding to use')
-    parser.add_argument('--attention', type=str, default='han', help='attention mechanism to use' )
+    parser.add_argument('--attention', type=str, default='hsan', help='attention mechanism to use' )
+    parser.add_argument('--save_path', type=str, default='', help='path to save checkpoints')
+    parser.add_argument('--num_heads', type=int, default=4, help='number of attention heads')
+    parser.add_argument('--model_size', type=int, default=128, help='model size')
+    parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
+    parser.add_argument('--dropout', type=float, default=0.2, help='dropout rate')
 
     args = parser.parse_args()
     return args
@@ -55,7 +66,7 @@ def predict_all_subscores(trainer, dataloader_transcripts_test, test_df):
 
     scoring_criteria = ['Cross Selling', 'Creates Incentive', 'Product Knowledge', 'Education', 'Processes']
     model = trainer.train_all_subscores_model(scoring_criteria)
-    torch.save(model, "call_encoder_bi_class.model")
+    torch.save(model, save_path+"call_encoder_bi_class.model")
     # print('Dev Accuracy for Call Transcripts dataset:')
     # get_metrics(dataloader_transcripts_dev, model, 'Category', type='bi_class')
     # print('Dev Baseline Model Metrics:')
@@ -63,27 +74,42 @@ def predict_all_subscores(trainer, dataloader_transcripts_test, test_df):
     print('Test Metrics for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, type='bi_class')
     plot_roc(scoring_criteria, pred_df)
-    pred_df.to_csv('all_subscores_pred_test.csv')
-    print('Test Baseline Model Metrics:')
-    predict_baseline_metrics(test_df, type='bi_class')
+    pred_df.to_pickle(save_path+'all_subscores_pred_test.p')
+    # print('Test Baseline Model Metrics:')
+    # predict_baseline_metrics(test_df, type='bi_class')
     return metrics
 
+def predict_product_knowledge(trainer, dataloader_transcripts_test, test_df):
 
-def plot_roc(scoring_criteria, df):
-    for crit in scoring_criteria:
-        y_pred_proba = df['RawPred ' + crit]
-        y_true = df['True ' + crit]
-        fpr, tpr, _ = metrics.roc_curve(y_true, y_pred_proba)
-        auc = metrics.roc_auc_score(y_true, y_pred_proba).round(2)
-        plt.plot(fpr, tpr, label="{}, auc={}".format(crit, auc))
-        plt.xlabel("False Positivity Rate, bad calls class 1 ")
-        plt.xlabel("True Positivity Rate, bad calls class 1")
-        plt.legend(loc=4)
-    plt.show()
+    scoring_criteria = ['Product Knowledge']
+    model = trainer.train_prod_knowledge_model(scoring_criteria)
+    torch.save(model, save_path+"product_knowledge.model")
+    print('Test Metrics for Call Transcripts dataset  is:')
+    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, type='bi_class')
+    plot_roc(scoring_criteria, pred_df)
+    pred_df.to_pickle(save_path+'prod_knw_pred_test.p')
+    # print('Test Baseline Model Metrics:')
+    # predict_baseline_metrics(test_df, type='bi_class')
+    return metrics
+
+def predict_cross_selling(trainer, dataloader_transcripts_test, test_df):
+
+    scoring_criteria = ['Cross Selling']
+    model = trainer.train_all_subscores_model(scoring_criteria)
+    torch.save(model, save_path+"cross_selling.model")
+    print('Test Metrics for Call Transcripts dataset  is:')
+    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, type='bi_class')
+    plot_roc(scoring_criteria, pred_df)
+    pred_df.to_pickle(save_path+'cross_selling_pred_test.p')
+    # print('Test Baseline Model Metrics:')
+    # predict_baseline_metrics(test_df, type='bi_class')
+    return metrics
+    
 
 
 def predict_overall_category(trainer, dataloader_transcripts_test, test_df):
     model = trainer.train_overall_model()
+
     torch.save(model, "call_encoder_bi_class.model")
     # print('Dev Accuracy for Call Transcripts dataset:')
     # get_metrics(dataloader_transcripts_dev, model, 'Category', type='bi_class')
@@ -143,14 +169,14 @@ def run_cross_validation(train_df, test_df):
         batch_size = args.batch_size
 
         dataloader_transcripts_train = DataLoader(dataset_transcripts_train, batch_size=batch_size, shuffle=True,
-                                                  num_workers=0, collate_fn=collate)
-        dataloader_transcripts_dev = DataLoader(dataset_transcripts_dev, batch_size=batch_size, shuffle=True,
-                                                num_workers=0, collate_fn=collate)
-        dataloader_transcripts_test = DataLoader(dataset_transcripts_test, batch_size=batch_size, shuffle=True,
-                                                 num_workers=0, collate_fn=collate)
+                                                  num_workers=4, collate_fn=collate)
+        dataloader_transcripts_dev = DataLoader(dataset_transcripts_dev, batch_size=batch_size, shuffle=False,
+                                                num_workers=4, collate_fn=collate)
+        dataloader_transcripts_test = DataLoader(dataset_transcripts_test, batch_size=batch_size, shuffle=False,
+                                                 num_workers=4, collate_fn=collate)
         # model = Word2Vec.load('custom_w2v_100d')
 
-        model = Word2VecKeyedVectors.load_word2vec_format(word_embedding_pt[args.word_embedding])
+        model = KeyedVectors.load(word_embedding_pt[args.word_embedding], mmap='r')
         vec_size = model.vector_size
         vocab_size = len(vocab)
         weights_matrix = np.zeros((vocab_size, vec_size))
@@ -171,19 +197,34 @@ def run_cross_validation(train_df, test_df):
             mse = predict_overall_score(trainer, dataloader_transcripts_test, test_df)
         elif args.model == 'AllSubScores':
             metrics = predict_all_subscores(trainer, dataloader_transcripts_test, test_df)
+        elif args.model == 'Cross_Selling':
+            metrics = predict_cross_selling(trainer, dataloader_transcripts_test, test_df)
+        elif args.model == 'Product_Knowledge':
+            metrics = predict_product_knowledge(trainer, dataloader_transcripts_test, test_df)
         break
     return kfold_results
 
 
 if __name__ == "__main__":
     args = _parse_args()
-    kf = KFold(n_splits=5, shuffle=True)
-    score_df, score_comment_df, q_text = prepare_score_df(
-        "/Users/akshaykekuda/Desktop/CSR-SA/ScoringDetail_viw_all_subscore.p", workgroup=args.workgroup)
-    transcript_score_df = prepare_trancript_score_df(score_df, q_text)
-    train_df, test_df = train_test_split(transcript_score_df, test_size=0.20)
-    if args.train_samples>0:
-        train_df = balance_df(train_df, args.train_samples)
-    kfold_results = run_cross_validation(train_df, test_df)
+    original_stdout = sys.stdout # Save a reference to the original standard output
+    os.mkdir('logs/'+args.save_path)
+    save_path = 'logs/'+args.save_path+'/'
+    log_file = save_path + 'log.txt'
+
+    with open(save_path+'log.txt', 'w') as f:
+        sys.stdout = f # Change the standard output to the file we created.
+        print("Arguments:", args)
+        kf = KFold(n_splits=5, shuffle=True)
+        score_df, score_comment_df, q_text = prepare_score_df(
+            path_to_handscored_p, workgroup=args.workgroup)
+        transcript_score_df = prepare_trancript_score_df(score_df, q_text)
+        train_df, test_df = train_test_split(transcript_score_df, test_size=0.15)
+        if args.train_samples>0:
+            train_df = balance_df(train_df, args.train_samples)
+        kfold_results = run_cross_validation(train_df, test_df)
+        sys.stdout = original_stdout # Reset the standard output to its original value
+
+
     # avg_tuple = [sum(y) / len(y) for y in zip(*kfold_results)]
     # print("Overall accuracy={} Overall F1 score={}".format(avg_tuple[0], avg_tuple[1]))

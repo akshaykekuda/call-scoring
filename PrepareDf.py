@@ -1,10 +1,12 @@
 import pandas as pd
 import os
+import pickle5 as pickle
 
-transcripts_dir = '/Users/akshaykekuda/Desktop/CSR-SA/manual_score_transcriptions/output_dual/output'
+transcripts_dir = 'transcriptions/text_only'
 
 def prepare_score_df(path_to_p, workgroup):
-    df = pd.read_pickle(path_to_p)
+    with open(path_to_p, 'rb') as file:
+        df = pickle.load(file)
     df = df.sort_values(by=['RecordingDate', 'QGroupSequence', 'QuestionSequence']).copy()
     cols = ['QGroupSequence', 'QGroupName', 'InteractionIdKey', 'QuestionSequence', 'QuestionText', 'QuestionType',
             'QuestionPromptType', 'QuestionWeight', 'QuestionMin', 'QuestionMax', 'AnswerScore', 'RawAnswer',
@@ -69,13 +71,18 @@ def prepare_trancript_score_df(score_df, q_text):
             if len(tscpt) == 0:
                 print("empty file")
                 continue
-            arr = file.split("_")
-            id = arr[1].split('.')[0]
+            if '-' in file:
+                arr = file.split("-")
+                id = arr[1].split("_")[0]
+            else:
+                arr = file.split("_")
+                id = arr[1].split('.')[0]
             if id in score_df.index:
                     df.loc[id, score_df.columns] = score_df.loc[id]
                     df.loc[id, ['text', 'file_name']] = [tscpt, file_loc]
     df.loc[:, q_text] = df.loc[:, q_text].astype(int)
     df = df.dropna()
+    print("Number of Calls = {}".format(len(df)))
     return df
 
 
