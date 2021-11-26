@@ -227,7 +227,7 @@ if __name__ == "__main__":
     # with open(args.save_path+'log.txt', 'w') as f:
     #     sys.stdout = f # Change the standard output to the file we created.
     print("Arguments:", args)
-    score_df, score_comment_df, q_text = prepare_score_df(
+    score_df, q_text = prepare_score_df(
         path_to_handscored_p, workgroup=args.workgroup)
     transcript_score_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
     train_df, test_df = train_test_split(transcript_score_df, test_size=0.15)

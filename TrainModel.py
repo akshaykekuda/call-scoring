@@ -85,10 +85,10 @@ class TrainModel:
         # class_weights = torch.tensor(class_weights, dtype=torch.float)
         class_weights = self.get_class_weights(scoring_criterion).squeeze()
         model = self.get_model(num_classes=2)
-        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        loss_fn = nn.CrossEntropyLoss(weight=class_weights)
         model_optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
         scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
-        model = self.train_model(self.args.epochs, model, criterion, model_optimizer, scheduler,
+        model = self.train_model(self.args.epochs, model, loss_fn, model_optimizer, scheduler,
                                  scoring_criterion=scoring_criterion)
         return model
 
@@ -108,11 +108,11 @@ class TrainModel:
         class_weights = self.get_class_weights(scoring_criteria)
         positive_weights = class_weights[:, 1]
         model = self.get_model(num_classes=len(scoring_criteria))
-        criterion = nn.BCEWithLogitsLoss(pos_weight=positive_weights)
+        loss_fn = nn.BCEWithLogitsLoss(pos_weight=positive_weights)
         model_optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
         scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
         epochs = self.args.epochs
-        model = self.train_model(epochs, model, criterion, model_optimizer, scheduler,
+        model = self.train_model(epochs, model, loss_fn, model_optimizer, scheduler,
                                  scoring_criterion=scoring_criteria)
         return model
 
@@ -122,15 +122,15 @@ class TrainModel:
         #         nn.init.xavier_uniform_(p)
 
         model = self.get_model(num_classes=len(scoring_criteria))
-        criterion = nn.MSELoss()
+        loss_fn = nn.MSELoss()
         model_optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
         scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
         epochs = self.args.epochs
-        model = self.train_model(epochs, model, criterion, model_optimizer, scheduler,
+        model = self.train_model(epochs, model, loss_fn, model_optimizer, scheduler,
                                  scoring_criterion=scoring_criteria)
         return model
 
-    def train_model(self, epochs, model, criterion, model_optimizer, scheduler, scoring_criterion):
+    def train_model(self, epochs, model, loss_fn, model_optimizer, scheduler, scoring_criterion):
         print("inside train model")
         train_acc = []
         dev_acc = []
@@ -138,7 +138,7 @@ class TrainModel:
         model.train()
         loss_arr = []
         print(model)
-        print(criterion)
+        print(loss_fn)
         print(model_optimizer)
         for n in range(epochs):
             epoch_loss = 0
@@ -158,7 +158,7 @@ class TrainModel:
                                           dtype=torch.long, device=self.args.device).squeeze()
                 else:
                     raise "invalid optimizer"
-                loss += criterion(output, target)
+                loss += loss_fn(output, target)
                 model_optimizer.zero_grad()
                 epoch_loss += loss.detach().item()
                 loss.backward()
@@ -171,7 +171,7 @@ class TrainModel:
                 print("Training metric at end of epoch {}:".format(n))
                 train_metrics, _ = get_metrics(self.dataloader_train, model, scoring_criterion, self.args.optim)
                 print("Dev metric at end of epoch {}:".format(n))
-                dev_metrics, _ = get_metrics(self.dataloader_dev, model, criterion, self.args.optim)
+                dev_metrics, _ = get_metrics(self.dataloader_dev, model, scoring_criterion, self.args.optim)
                 train_acc.append(train_metrics)
                 dev_acc.append(dev_metrics)
         print("Epoch Losses:", loss_arr)
