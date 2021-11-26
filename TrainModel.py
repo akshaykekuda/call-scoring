@@ -83,11 +83,9 @@ class TrainModel:
         # class_weights = class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train),
         #                                                       y=y_train)
         # class_weights = torch.tensor(class_weights, dtype=torch.float)
-        class_weights = self.get_class_weights(scoring_criterion)
+        class_weights = self.get_class_weights(scoring_criterion).squeeze()
         model = self.get_model(num_classes=2)
-        print(model)
         criterion = nn.CrossEntropyLoss(weight=class_weights)
-        print(criterion)
         model_optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
         scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
         model = self.train_model(self.args.epochs, model, criterion, model_optimizer, scheduler,
@@ -110,9 +108,7 @@ class TrainModel:
         class_weights = self.get_class_weights(scoring_criteria)
         positive_weights = class_weights[:, 1]
         model = self.get_model(num_classes=len(scoring_criteria))
-        print(model)
         criterion = nn.BCEWithLogitsLoss(pos_weight=positive_weights)
-        print(criterion)
         model_optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
         scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
         epochs = self.args.epochs
@@ -126,9 +122,7 @@ class TrainModel:
         #         nn.init.xavier_uniform_(p)
 
         model = self.get_model(num_classes=len(scoring_criteria))
-        print(model)
         criterion = nn.MSELoss()
-        print(criterion)
         model_optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
         scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
         epochs = self.args.epochs
@@ -143,6 +137,9 @@ class TrainModel:
         model = model.to(self.args.device)
         model.train()
         loss_arr = []
+        print(model)
+        print(criterion)
+        print(model_optimizer)
         for n in range(epochs):
             epoch_loss = 0
             for batch in tqdm(self.dataloader_train):
@@ -161,7 +158,6 @@ class TrainModel:
                                           dtype=torch.long, device=self.args.device).squeeze()
                 else:
                     raise "invalid optimizer"
-
                 loss += criterion(output, target)
                 model_optimizer.zero_grad()
                 epoch_loss += loss.detach().item()
