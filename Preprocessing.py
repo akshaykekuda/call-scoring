@@ -13,6 +13,8 @@ import unidecode
 import contractions
 
 #Takes a call transcript as argument and returns a cleaned version of the text
+
+
 def preprocess_transcript(filename):
     try:
         file_in = open(filename, 'r')
@@ -22,6 +24,8 @@ def preprocess_transcript(filename):
             text = text.splitlines()
             for idx, utterance in enumerate(text):
                 text[idx] = clean_text(utterance)
+                if len(text[idx]) == 0:
+                    text.pop(idx)
             return text
         except e:
             print("Failed to read transcript")

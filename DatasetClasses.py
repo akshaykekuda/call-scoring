@@ -23,59 +23,6 @@ import pickle
 scoring_criteria = ['Greeting', 'Professionalism', 'Confidence',
                     'Cross Selling', 'Retention', 'Creates Incentive', 'Product Knowledge',
                     'Documentation', 'Education', 'Processes', 'Category', 'CombinedPercentileScore']
-class YelpDataset(Dataset):
-    """Yelp dataset."""
-
-    def __init__(self, file_name):
-        """
-        Args:
-            file_name: The json file to make the dataset from
-        """
-        self.df = pd.read_json(file_name, lines=True)
-        word_tokenizer = get_tokenizer('basic_english')
-        
-        binary_cat = []
-        counter = Counter()
-        reviews = []
-
-        #Create target class for each review, build vocab
-        for index, row in self.df.iterrows():
-            binary_cat.append(row['category'])
-
-            sentences = sent_tokenize(row['text'])
-            sentences = [s.replace('.', '') for s in sentences]
-            reviews.append(sentences)
-            for i in range(len(sentences)):
-              words = word_tokenizer(sentences[i])
-              counter.update(words)
-
-        self.vocab = vocab(counter)
-        self.vocab.insert_token('<pad>', 0)
-        self.vocab.insert_token('<UNK>', 0)
-        self.vocab.set_default_index(0)
-        self.df['category'] = binary_cat
-        self.df['text'] = reviews
-
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-        category = self.df.iloc[idx, 0]
-        text = self.df.iloc[idx, 1]
-        sample = {'category': category, 'text': text}
-
-        return sample
-
-    def get_vocab(self):
-      return self.vocab
-    def save_vocab(self, path):
-        import pickle
-        output = open(path, 'wb')
-        pickle.dump(self.vocab, output)
-        output.close()
 
 
 class CallDataset(Dataset):
@@ -90,15 +37,15 @@ class CallDataset(Dataset):
         word_tokenizer = get_tokenizer('basic_english')
         clean_files = []
         for f in df.file_name:
-          clean_files.append(preprocess_transcript(f))
+            clean_files.append(preprocess_transcript(f))
 
         counter = Counter()
 
-        #Build vocab from transcripts
+        # Build vocab from transcripts
         for transcript in clean_files:
-          for i in range(len(transcript)):
-            words = word_tokenizer(transcript[i])
-            counter.update(words)
+            for i in range(len(transcript)):
+                words = word_tokenizer(transcript[i])
+                counter.update(words)
 
         self.vocab = vocab(counter)
         self.vocab.insert_token('<pad>', 0)

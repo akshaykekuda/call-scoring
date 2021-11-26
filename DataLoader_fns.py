@@ -9,76 +9,58 @@ Original file is located at
 
 import torch
 from torchtext.data.utils import get_tokenizer
-import pickle
-from torch.nn.utils.rnn import pad_sequence
 word_tokenizer = get_tokenizer('basic_english')
-# file = open("vocab", 'rb')
-# vocab = pickle.load(file)
-# file.close()
-
-
-# word_tokenizer = get_tokenizer('basic_english')
-# file = open("yelp_vocab", 'rb')
-# yelp_vocab = pickle.load(file)
-# file.close()
 
 class Collate:
-    def __init__(self, vocab):
+    def __init__(self, vocab, device):
         self.vocab = vocab
+        self.device = device
+        self.count = 0
 
     def pad_trans(self, trans, max_len):
         num_sents = len(trans)
+        trans_pos_indices = [i+1 for i in range(num_sents)]
         for i in range(max_len - num_sents):
             trans.append('<pad>')
-        return trans
+            trans_pos_indices.append(0)
+        return trans, trans_pos_indices
 
     def get_indices(self, sentence, max_sent_len):
-        # word_tokenizer = get_tokenizer('basic_english')
         tokens = word_tokenizer(sentence)
         indices = [self.vocab[token] for token in tokens]
         diff = max_sent_len - len(tokens)
+        positional_indices = [i + 1 for i in range(len(tokens))]
         for i in range(diff):
-            indices.append(1)  # padding idx=1
-        return indices
-
-    def get_positions(self, text, max_trans_len, max_sent_len):
-        # word_tokenizer = get_tokenizer('basic_english')
-        num_sents = len(text)
-        word_pos_indices = []
-        trans_pos_indices = []
-        for i in range(max_trans_len - num_sents):
-            text.append('')
-        for idx, sent in enumerate(text):
-            tokens = word_tokenizer(sent)
-            positional_indices = [i + 1 for i in range(len(tokens))]
-            diff = max_sent_len - len(tokens)
-            for i in range(diff):
-                positional_indices.append(0)
-            word_pos_indices.append(positional_indices)
-            trans_pos_indices.append(idx+1 if len(sent) > 1 else 0)
-        return trans_pos_indices, word_pos_indices
+            indices.append(self.vocab['<pad>'])  # padding idx=1
+            positional_indices.append(0)
+        return indices, positional_indices
 
     def collate(self, batch):
         max_num_sents = 0
         max_sent_len = 0
         trans_len = []
-        for sample in batch:
-            num_sents = len(sample['text'])
+        for i, sample in enumerate(batch):
+            sent_len = []
+            trans = sample['text']
+            for sent in trans:
+                l = len(word_tokenizer(sent))
+                sent_len.append(l)
+                if l > max_sent_len:
+                    max_sent_len = l
+            num_sents = len(trans)
             if num_sents > max_num_sents:
                 max_num_sents = num_sents
-            sent_len = []
-            for sent in sample['text']:
-                sent_len.append(len(word_tokenizer(sent)))
-                if len(word_tokenizer(sent)) > max_sent_len:
-                    max_sent_len = len(word_tokenizer(sent))
             trans_len.append(sent_len)
 
         for sample in batch:
-            sample['trans_pos_indices'], sample['word_pos_indices'] = self.get_positions(sample['text'], max_num_sents, max_sent_len)
-            sample['text'] = self.pad_trans(sample['text'], max_num_sents)
+            trans = sample['text']
+            pad_trans, sample['trans_pos_indices'] = self.pad_trans(trans, max_num_sents)
             sample['indices'] = []
-            for sent in sample['text']:
-                sample['indices'].append(self.get_indices(sent, max_sent_len))
+            sample['word_pos_indices'] = []
+            for sent in pad_trans:
+                indices, positional_indices = self.get_indices(sent, max_sent_len)
+                sample['indices'].append(indices)
+                sample['word_pos_indices'].append(positional_indices)
 
         batch_dict = {'text': [], 'indices': [], 'scores': [], 'id': [],
                       'trans_pos_indices': [], 'word_pos_indices': []}
@@ -90,70 +72,10 @@ class Collate:
             batch_dict['trans_pos_indices'].append(sample['trans_pos_indices'])
             batch_dict['word_pos_indices'].append(sample['word_pos_indices'])
 
-        batch_dict['indices'] = torch.tensor(batch_dict['indices'])
-        batch_dict['trans_pos_indices'] = torch.tensor(batch_dict['trans_pos_indices'])
-        batch_dict['word_pos_indices'] = torch.tensor(batch_dict['word_pos_indices'])
+        batch_dict['indices'] = torch.tensor(batch_dict['indices'], device=self.device)
+        batch_dict['trans_pos_indices'] = torch.tensor(batch_dict['trans_pos_indices'], device=self.device)
+        batch_dict['word_pos_indices'] = torch.tensor(batch_dict['word_pos_indices'], device=self.device)
         batch_dict['lens'] = trans_len
 
         return batch_dict
 
-
-    def pad_collate(self, batch):
-        max_num_sents = 0
-        max_sent_len = 0
-        trans_len = []
-        for sample in batch:
-            num_sents = len(sample['text'])
-            if num_sents > max_num_sents:
-                max_num_sents = num_sents
-            sent_len = []
-            for sent in sample['text']:
-                sent_len.append(len(word_tokenizer(sent)))
-                if len(word_tokenizer(sent)) > max_sent_len:
-                    max_sent_len = len(word_tokenizer(sent))
-            trans_len.append(sent_len)
-
-        for sample in batch:
-            sample['text'] = pad_trans(sample['text'], max_num_sents)
-            sample['indices'] = []
-            for sent in sample['text']:
-                sample['indices'].append(get_indices(sent, max_sent_len))
-
-        batch_dict = {'text': [], 'indices': [], 'scores': [], 'id': []}
-        for sample in batch:
-            batch_dict['text'].append(sample['text'])
-            batch_dict['indices'].append(sample['indices'])
-            batch_dict['scores'].append(sample['scores'])
-            batch_dict['id'].append(sample['id'])
-        batch_dict['indices'] = torch.tensor(batch_dict['indices'])
-        batch_dict['lens'] = trans_len
-        return batch_dict
-
-
-    def yelp_collate(self, batch):
-        max_num_sents = 0
-        max_sent_len = 0
-        for sample in batch:
-            num_sents = len(sample['text'])
-            if num_sents > max_num_sents:
-                max_num_sents = num_sents
-            for sent in sample['text']:
-                if len(word_tokenizer(sent)) > max_sent_len:
-                    max_sent_len = len(word_tokenizer(sent))
-
-        for sample in batch:
-            sample['text'] = pad_trans(sample['text'], max_num_sents)
-            sample['indices'] = []
-            for sent in sample['text']:
-                sample['indices'].append(get_indices(sent, max_sent_len))
-
-        batch_dict = {'text': [], 'indices': [], 'category': []}
-        for sample in batch:
-            batch_dict['text'].append(sample['text'])
-            batch_dict['indices'].append(sample['indices'])
-            batch_dict['category'].append(sample['category'])
-
-        batch_dict['indices'] = torch.tensor(batch_dict['indices'])
-        batch_dict['category'] = torch.tensor(batch_dict['category'])
-
-        return batch_dict

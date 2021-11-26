@@ -9,76 +9,73 @@ Original file is located at
 import pandas as pd
 from tqdm import tqdm
 import torch
-from Preprocessing import preprocess_transcript
-from torchtext.data.utils import get_tokenizer
-# from DataLoader_fns import get_indices
 from sklearn.metrics import classification_report, f1_score, mean_squared_error
 from PrepareDf import prepare_baseline_df
 from matplotlib import pyplot as plt
 from sklearn import metrics
 
-def get_metrics(dataloader, encoder, scoring_criterion, type):
+
+def get_metrics(dataloader, model, scoring_criterion, optim):
     id_arr = []
     text_arr = []
     attn_score_arr = []
     pred_arr = []
-    target_arr =[]
+    target_arr = []
     raw_pred_arr = []
-    encoder.eval()
+    model.eval()
     thresh = 0.5
     with torch.no_grad():
         for batch in tqdm(dataloader):
-            output, scores = encoder(batch['indices'], batch['lens'], batch['trans_pos_indices'], batch['word_pos_indices'])
-            if type == 'mse':
+            output, scores = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
+                                     batch['word_pos_indices'])
+            target = [sample[scoring_criterion].tolist() for sample in batch['scores']]
+            if optim == 'mse':
+                raw_proba = [None for i in range(len(scoring_criterion))]
                 pred = output.numpy()
-                target = [sample[scoring_criterion] for sample in batch['scores']]
-            elif type == 'bi_class':
-                if scoring_criterion == 'Product Knowledge':
-                    probs = F.softmax(output, dim=1)
-                    max_vals = torch.max(probs, dim=1)
-                    raw_pred = max_vals[0].tolist()
-                    pred = max_vals[1].tolist()
-                    target = [sample[scoring_criterion[0]] for sample in batch['scores']]
-                else:
-                    raw_pred = torch.sigmoid(output)
-                    pred = ((raw_pred > thresh).long()).tolist()
-                    target = [sample[scoring_criterion].tolist() for sample in batch['scores']]
-            raw_pred_arr.extend(raw_pred.tolist())
+            elif optim == 'bce':
+                raw_proba = torch.sigmoid(output)
+                pred = ((raw_proba > thresh).long()).tolist()
+            elif optim == 'cel':
+                probs = torch.softmax(output, dim=1)
+                max_vals = torch.max(probs, dim=1)
+                raw_proba = probs[:, 1].tolist()
+                pred = max_vals[1].tolist()
+            else:
+                raise ValueError("Cannot do inference")
+            raw_pred_arr.extend(raw_proba)
             pred_arr.extend(pred)
             target_arr.extend(target)
             id_arr.extend(batch['id'])
             text_arr.extend(batch['text'])
             attn_score_arr.extend(scores.numpy())
-        raw_pred_df = pd.DataFrame(raw_pred_arr, columns=['RawPred ' + category for category in scoring_criterion])
+        raw_pred_df = pd.DataFrame(raw_pred_arr, columns=['RawProba ' + category for category in scoring_criterion])
         pred_df = pd.DataFrame(pred_arr, columns=['Pred ' + category for category in scoring_criterion])
         target_df = pd.DataFrame(target_arr, columns=['True ' + category for category in scoring_criterion])
         df = pd.concat((pred_df, target_df, raw_pred_df), axis=1)
         df['id'] = id_arr
         df['text'] = text_arr
         df['scores'] = attn_score_arr
-    encoder.train()
+    model.train()
     print("Sample predictions")
     print("target:", target_arr[:10])
     print("prediction:", pred_arr[:10])
 
-    if type == 'mse':
+    if optim == 'mse':
         mse_error = mean_squared_error(target_arr, pred_arr)
         print("MSE Error = {}".format(mse_error))
-        return mse_error, pred_df
-
-    elif type == 'bi_class':
+        return mse_error, df
+    else:
         # f1 = f1_score(target_arr, pred_arr)
         for i in range(len(scoring_criterion)):
             print("Category:", scoring_criterion[i])
             print(classification_report(target_df.iloc[:, i], pred_df.iloc[:, i]))
         clr = classification_report(target_arr, pred_arr)
-        # plot_roc(scoring_criterion, df)
         return clr, df
 
 
 def plot_roc(scoring_criteria, df, path):
     for crit in scoring_criteria:
-        y_pred_proba = df['RawPred ' + crit]
+        y_pred_proba = df['RawProba ' + crit]
         y_true = df['True ' + crit]
         fpr, tpr, _ = metrics.roc_curve(y_true, y_pred_proba)
         auc = metrics.roc_auc_score(y_true, y_pred_proba).round(2)
@@ -97,78 +94,53 @@ def predict_baseline_metrics(test_df, type):
     sales_df = sales_df[~sales_df.index.duplicated(keep='first')]
     df = pd.DataFrame(columns=['Category', 'Predicted Category'])
     if type == 'bi_class':
-      for call_id in test_df.index:
-        if test_df.loc[call_id, 'WorkgroupQueue'] == 'Sales':
-          if call_id in sales_df.index:
-            df.loc[call_id, 'Predicted Category'] = int(sales_df.loc[call_id, 'score'] < 0.25)
-            df.loc[call_id, 'Category'] = test_df.loc[call_id, 'Category']
-        elif test_df.loc[call_id, 'WorkgroupQueue'] == 'Customer Service':
-          if call_id in cs_df.index:
-            df.loc[call_id, 'Predicted Category'] = int(cs_df.loc[call_id, 'score'] < 0.25)
-            df.loc[call_id, 'Category'] = test_df.loc[call_id, 'Category']
-      clr = classification_report(df['Category'].tolist(), df['Predicted Category'].tolist())
-      print(clr)
-      return clr
+        for call_id in test_df.index:
+            if test_df.loc[call_id, 'WorkgroupQueue'] == 'Sales':
+                if call_id in sales_df.index:
+                    df.loc[call_id, 'Predicted Category'] = int(sales_df.loc[call_id, 'score'] < 0.25)
+                    df.loc[call_id, 'Category'] = test_df.loc[call_id, 'Category']
+            elif test_df.loc[call_id, 'WorkgroupQueue'] == 'Customer Service':
+                if call_id in cs_df.index:
+                    df.loc[call_id, 'Predicted Category'] = int(cs_df.loc[call_id, 'score'] < 0.25)
+                    df.loc[call_id, 'Category'] = test_df.loc[call_id, 'Category']
+        clr = classification_report(df['Category'].tolist(), df['Predicted Category'].tolist())
+        print(clr)
+        return clr
 
     elif type == 'mse':
-      for call_id in test_df.index:
-        if test_df.loc[call_id, 'WorkgroupQueue'] == 'Sales':
-          if call_id in sales_df.index:
-            df.loc[call_id, 'Predicted Score'] = (1 - sales_df.loc[call_id, 'score'])
-            df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']
-        elif test_df.loc[call_id, 'WorkgroupQueue'] == 'Customer Service':
-          if call_id in cs_df.index:
-            df.loc[call_id, 'Predicted Score'] = (1 - cs_df.loc[call_id, 'score'])
-            df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']
-      mse_error = mean_squared_error(df['Overall Score'].tolist(), df['Predicted Score'].tolist())
-      print("MSE Error = {}".format(mse_error))
-      return mse_error
+        for call_id in test_df.index:
+            if test_df.loc[call_id, 'WorkgroupQueue'] == 'Sales':
+                if call_id in sales_df.index:
+                    df.loc[call_id, 'Predicted Score'] = (1 - sales_df.loc[call_id, 'score'])
+                    df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']
+            elif test_df.loc[call_id, 'WorkgroupQueue'] == 'Customer Service':
+                if call_id in cs_df.index:
+                    df.loc[call_id, 'Predicted Score'] = (1 - cs_df.loc[call_id, 'score'])
+                    df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']
+        mse_error = mean_squared_error(df['Overall Score'].tolist(), df['Predicted Score'].tolist())
+        print("MSE Error = {}".format(mse_error))
+        return mse_error
 
 
-def predict(transcript, encoder, vocab):
-  
-  word_tokenizer = get_tokenizer('basic_english')
-  sents = preprocess_transcript(transcript)
-  max_len = 0
-  for sent in sents:
-    tokens = word_tokenizer(sent)
-    if len(tokens) > max_len:
-      max_len = len(tokens)
+def get_regression_metrics(dataloader, model, scoring_criterion):
+    pred_arr = []
+    target_arr = []
+    model.eval()
+    total_correct = 0
+    batch_size = dataloader.batch_size
+    with torch.no_grad():
+        for batch in tqdm(dataloader):
+            output, scores = model(batch['indices'])
+            for i in range(output.shape[0]):
+                pred = output[i].item()
+                target = batch['scores'][i][scoring_criterion]
+                pred_arr.append(pred)
+                target_arr.append(target)
+    model.train()
+    mse_error = mean_squared_error(target_arr, pred_arr)
+    print("MSE Error = {}".format(mse_error))
+    return mse_error
 
-  indices = []
-  for sent in sents:
-    indices.append(get_indices(sent, max_len, vocab))
-  indices = torch.tensor(indices)
-
-  indices = indices.unsqueeze_(0)
-
-  output, hidden = encoder(indices)
-  output = output[:, -1, :]
-
-  output = classifier(output)
-  classification = torch.argmax(output).item()
-
-  return classification
-
-
-def get_regression_metrics(dataloader, encoder, scoring_criterion):
-  pred_arr = []
-  target_arr =[]
-  encoder.eval()
-  total_correct = 0
-  batch_size = dataloader.batch_size
-  with torch.no_grad():
-    for batch in tqdm(dataloader):
-      output, scores = encoder(batch['indices'])
-      for i in range(output.shape[0]):
-        pred = output[i].item()
-        target = batch['scores'][i][scoring_criterion]
-        pred_arr.append(pred)
-        target_arr.append(target)
-  encoder.train()
-  mse_error = mean_squared_error(target_arr, pred_arr)
-  print("MSE Error = {}".format(mse_error))
-  return mse_error
 
 def predict_baseline_mse(test_df):
     cs_df, sales_df = prepare_baseline_df()
@@ -176,37 +148,38 @@ def predict_baseline_mse(test_df):
     sales_df = sales_df[~sales_df.index.duplicated(keep='first')]
     df = pd.DataFrame(columns=['Overall Score', 'Predicted Score'])
     for call_id in test_df.index:
-      if test_df.loc[call_id, 'WorkgroupQueue'] == 'Sales':
-        if call_id in sales_df.index:
-          df.loc[call_id, 'Predicted Score'] = 1 - sales_df.loc[call_id, 'score']
-          df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']/100
-      elif test_df.loc[call_id, 'WorkgroupQueue'] == 'Customer Service':
-        if call_id in cs_df.index:
-          df.loc[call_id, 'Predicted Score'] = 1- cs_df.loc[call_id, 'score']
-          df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore']/100
+        if test_df.loc[call_id, 'WorkgroupQueue'] == 'Sales':
+            if call_id in sales_df.index:
+                df.loc[call_id, 'Predicted Score'] = 1 - sales_df.loc[call_id, 'score']
+                df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore'] / 100
+        elif test_df.loc[call_id, 'WorkgroupQueue'] == 'Customer Service':
+            if call_id in cs_df.index:
+                df.loc[call_id, 'Predicted Score'] = 1 - cs_df.loc[call_id, 'score']
+                df.loc[call_id, 'Overall Score'] = test_df.loc[call_id, 'CombinedPercentileScore'] / 100
     mse_error = mean_squared_error(df['Overall Score'].tolist(), df['Predicted Score'].tolist())
     print("MSE Error = {}".format(mse_error))
     return mse_error
 
-def get_accuracy(dataloader, encoder, classifier):
-  total_correct = 0
 
-  for batch in tqdm(dataloader):
+def get_accuracy(dataloader, model, classifier):
+    total_correct = 0
 
-    batch_size = len(batch['indices'])
+    for batch in tqdm(dataloader):
 
-    output, hidden = encoder(batch['indices'])
-    output = output[:,-1,:]
+        batch_size = len(batch['indices'])
 
-    output = classifier(output)
+        output, hidden = model(batch['indices'])
+        output = output[:, -1, :]
 
-    for i in range(batch_size):
+        output = classifier(output)
 
-      classification = torch.argmax(output[i]).item()
-      target = batch['category'][i]
-      if target == classification:
-        total_correct+=1
+        for i in range(batch_size):
 
-  acc = total_correct/(len(dataloader) * batch_size)
-  print("Accuracy: {}".format(acc))
-  return acc
+            classification = torch.argmax(output[i]).item()
+            target = batch['category'][i]
+            if target == classification:
+                total_correct += 1
+
+    acc = total_correct / (len(dataloader) * batch_size)
+    print("Accuracy: {}".format(acc))
+    return acc
