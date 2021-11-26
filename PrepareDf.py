@@ -63,7 +63,7 @@ def prepare_trancript_score_df(score_df, q_text, transcripts_dir):
     df = pd.DataFrame(columns=['text', 'file_name'])
     for file in os.listdir(transcripts_dir):
         if file.endswith('.txt'):
-            file_loc = transcripts_dir + '//' + file
+            file_loc = transcripts_dir + file
             f = open(file_loc, 'r')
             tscpt = f.read()
             f.close()

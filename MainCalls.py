@@ -59,7 +59,7 @@ def _parse_args():
     parser.add_argument('--model_size', type=int, default=64, help='model size')
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
     parser.add_argument('--dropout', type=float, default=0.2, help='dropout rate')
-    parser.add_argument('--trans_path', type=str, default='transcriptions/text_only', help='link to transcripts')
+    parser.add_argument('--trans_path', type=str, default='transcriptions/text_only/', help='link to transcripts')
     parser.add_argument('--device', type=str, default='cpu', help='device to use')
     parser.add_argument('--optim', type=str, default='bce', help='optimizer to use')
 
