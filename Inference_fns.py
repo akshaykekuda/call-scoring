@@ -74,6 +74,7 @@ def get_metrics(dataloader, model, scoring_criterion, optim):
 
 
 def plot_roc(scoring_criteria, df, path):
+    plt.clf()
     for crit in scoring_criteria:
         y_pred_proba = df['RawProba ' + crit]
         y_true = df['True ' + crit]
