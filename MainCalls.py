@@ -169,7 +169,7 @@ def run_cross_validation(train_df, test_df):
         dev_df = train_df.iloc[dev].copy()
         subscore_dist = t_df.loc[:, ['Greeting', 'Professionalism', 'Confidence',
                     'Cross Selling', 'Retention', 'Creates Incentive', 'Product Knowledge',
-                    'Documentation', 'Education', 'Processes']].apply(lambda x: x.value_counts())
+                    'Documentation', 'Education', 'Processes', 'Category']].apply(lambda x: x.value_counts())
         print("Subscore distribution count in Training set\n", subscore_dist)
         dataset_transcripts_train = CallDataset(t_df)
         dataset_transcripts_dev = CallDataset(dev_df)
@@ -221,21 +221,20 @@ def run_cross_validation(train_df, test_df):
 if __name__ == "__main__":
     args = _parse_args()
     args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    original_stdout = sys.stdout # Save a reference to the original standard output
-    os.mkdir(args.save_path)
-    log_file = args.save_path + 'log.txt'
-
-    with open(args.save_path+'log.txt', 'w') as f:
-        sys.stdout = f # Change the standard output to the file we created.
-        print("Arguments:", args)
-        score_df, score_comment_df, q_text = prepare_score_df(
-            path_to_handscored_p, workgroup=args.workgroup)
-        transcript_score_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
-        train_df, test_df = train_test_split(transcript_score_df, test_size=0.15)
-        if args.train_samples > 0:
-            train_df = balance_df(train_df, args.train_samples)
-        kfold_results = run_cross_validation(train_df, test_df)
-        sys.stdout = original_stdout # Reset the standard output to its original value
+    # original_stdout = sys.stdout # Save a reference to the original standard output
+    # os.mkdir(args.save_path)
+    # log_file = args.save_path + 'log.txt'
+    # with open(args.save_path+'log.txt', 'w') as f:
+    #     sys.stdout = f # Change the standard output to the file we created.
+    print("Arguments:", args)
+    score_df, score_comment_df, q_text = prepare_score_df(
+        path_to_handscored_p, workgroup=args.workgroup)
+    transcript_score_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
+    train_df, test_df = train_test_split(transcript_score_df, test_size=0.15)
+    if args.train_samples > 0:
+        train_df = balance_df(train_df, args.train_samples)
+    kfold_results = run_cross_validation(train_df, test_df)
+        # sys.stdout = original_stdout # Reset the standard output to its original value
 
 
     # avg_tuple = [sum(y) / len(y) for y in zip(*kfold_results)]

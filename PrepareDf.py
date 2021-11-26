@@ -31,7 +31,7 @@ def prepare_score_df(path_to_p, workgroup):
     # change baseline score range accordingly
     # overall score between 0 and 1
     score_df['CombinedPercentileScore'] = (calls_df.CombinedPercentileScore[::10]/100).astype(float).round(4)
-    score_df['Category'] = (score_df['CombinedPercentileScore'] < 0.3).apply(lambda x: int(x))
+    score_df['Category'] = (score_df['CombinedPercentileScore'] < 0.6).apply(lambda x: int(x))
     # overall score between 0 and 100
     # score_df['CombinedPercentileScore'] = (calls_df.CombinedPercentileScore[::10]).astype(float).round(2)
     # score_df['Category'] = (score_df['CombinedPercentileScore'] > 75).apply(lambda x: int(x))
@@ -89,7 +89,7 @@ def balance_df(df, num_samples):
     h = df[df.Category == 1].sample(n=num_samples//2)
     l = df[df.Category == 0].sample(n=num_samples//2)
     df_sampled = pd.concat((h,l))
-    print("sampled df:",df_sampled.Category.value_counts())
+    print("sampled df:", df_sampled.Category.value_counts())
     # h = len(df[df.Category == 1])
     # l = len(df) - h
     # temp = df[df.Category == 1].sample(h -l).index
