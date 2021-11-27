@@ -66,6 +66,7 @@ def _parse_args():
     parser.add_argument('--loss', type=str, default='bce', help='optimizer to use')
     parser.add_argument('--k', type=int, default='20', help='number of top comments to use')
     parser.add_argument('--use_feedback', type=bool, default=False, help='use feedback comments')
+    parser.add_argument('--num_workers', type=int, default=0, help='number of workers for the dataset')
 
     args = parser.parse_args()
     return args
@@ -85,7 +86,7 @@ def predict_all_subscores(trainer, dataloader_transcripts_test):
 
     torch.save(model.state_dict(), args.save_path+"call_encoder_bi_class.model")
     print('Test Metrics for Call Transcripts dataset  is:')
-    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, optim=args.loss)
+    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, loss=args.loss)
     plot_roc(scoring_criteria, pred_df, args.save_path+'auc.png')
     pred_df.to_pickle(args.save_path+'all_subscores_pred_test.p')
     return metrics
@@ -102,7 +103,7 @@ def predict_product_knowledge(trainer, dataloader_transcripts_test):
 
     torch.save(model.state_dict(), args.save_path+"product_knowledge.model")
     print('Test Metrics for Product Knowledge  is:')
-    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criterion, optim=args.loss)
+    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criterion, loss=args.loss)
     plot_roc(scoring_criterion, pred_df, args.save_path+'auc.png')
     pred_df.to_pickle(args.save_path+'prod_knw_pred_test.p')
     return metrics
@@ -118,7 +119,7 @@ def predict_cross_selling(trainer, dataloader_transcripts_test):
         raise "Cannot use the {} for Binary Classification".format(args.loss)
     torch.save(model.state_dict(), args.save_path+"cross_selling.model")
     print('Test Metrics for Call Transcripts dataset  is:')
-    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criterion, optim=args.loss)
+    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criterion, loss=args.loss)
     plot_roc(scoring_criterion, pred_df, args.save_path+'auc.png')
     pred_df.to_pickle(args.save_path+'cross_selling_pred_test.p')
     return metrics
@@ -134,7 +135,7 @@ def predict_overall_category(trainer, dataloader_transcripts_test):
         raise ValueError("Cannot use the {} for Binary Classification".format(args.loss))
     torch.save(model.state_dict(), args.save_path+"overall_category.model")
     print('Test Metrics for Call Transcripts dataset  is:')
-    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criterion, optim=args.loss)
+    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criterion, loss=args.loss)
     plot_roc(scoring_criterion, pred_df, args.save_path+'auc.png')
     pred_df.to_pickle(args.save_path+'overall_cat_pred_test.p')
     return metrics
@@ -148,7 +149,7 @@ def predict_overall_score(trainer, dataloader_transcripts_test):
         raise ValueError("Cannot use the {} for Regression".format(args.loss))
     torch.save(model.state_dict(), "overall_score.model")
     print('Test MSE for Call Transcripts dataset  is:')
-    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criterion, optim=args.loss)
+    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criterion, loss=args.loss)
     pred_df.to_pickle(args.save_path+'overall_score_pred_test.p')
     print('Test MSE for Call Transcripts dataset  is:')
     return metrics
@@ -208,7 +209,7 @@ def run_cross_validation(train_df, test_df):
             dataset_transcripts_train = CallDatasetWithFbk(t_df, scoring_criteria)
         else:
             dataset_transcripts_train = CallDataset(t_df, scoring_criteria)
-        dataset_transcripts_dev = CallDataset(dev_df,scoring_criteria)
+        dataset_transcripts_dev = CallDataset(dev_df, scoring_criteria)
         dataset_transcripts_test = CallDataset(test_df, scoring_criteria)
 
         max_trans_len, max_sent_len = get_max_len(train_df)
@@ -218,11 +219,11 @@ def run_cross_validation(train_df, test_df):
         batch_size = args.batch_size
         c = Collate(vocab, args.device)
         dataloader_transcripts_train = DataLoader(dataset_transcripts_train, batch_size=batch_size, shuffle=True,
-                                                  num_workers=0, collate_fn=c.collate)
+                                                  num_workers=args.num_workers, collate_fn=c.collate)
         dataloader_transcripts_dev = DataLoader(dataset_transcripts_dev, batch_size=batch_size, shuffle=False,
-                                                num_workers=0, collate_fn=c.collate)
+                                                num_workers=args.num_workers, collate_fn=c.collate)
         dataloader_transcripts_test = DataLoader(dataset_transcripts_test, batch_size=batch_size, shuffle=False,
-                                                 num_workers=0, collate_fn=c.collate)
+                                                 num_workers=args.num_workers, collate_fn=c.collate)
 
         embedding_model = KeyedVectors.load(word_embedding_pt[args.word_embedding], mmap='r')
         vocab_size = len(vocab)
