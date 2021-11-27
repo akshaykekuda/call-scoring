@@ -9,7 +9,9 @@ Original file is located at
 
 import torch
 from torchtext.data.utils import get_tokenizer
+from collections import defaultdict
 word_tokenizer = get_tokenizer('basic_english')
+
 
 class Collate:
     def __init__(self, vocab, device):
@@ -19,7 +21,7 @@ class Collate:
 
     def pad_trans(self, trans, max_len):
         num_sents = len(trans)
-        trans_pos_indices = [i+1 for i in range(num_sents)]
+        trans_pos_indices = [i + 1 for i in range(num_sents)]
         for i in range(max_len - num_sents):
             trans.append('<pad>')
             trans_pos_indices.append(0)
@@ -62,15 +64,22 @@ class Collate:
                 sample['indices'].append(indices)
                 sample['word_pos_indices'].append(positional_indices)
 
-        batch_dict = {'text': [], 'indices': [], 'scores': [], 'id': [],
-                      'trans_pos_indices': [], 'word_pos_indices': []}
+        # batch_dict = {'text': [], 'indices': [], 'scores': [], 'id': [],
+        #               'trans_pos_indices': [], 'word_pos_indices': [], 'fbk_vector': []}
+
+        batch_dict = defaultdict(list)
         for sample in batch:
-            batch_dict['text'].append(sample['text'])
-            batch_dict['indices'].append(sample['indices'])
-            batch_dict['scores'].append(sample['scores'])
-            batch_dict['id'].append(sample['id'])
-            batch_dict['trans_pos_indices'].append(sample['trans_pos_indices'])
-            batch_dict['word_pos_indices'].append(sample['word_pos_indices'])
+            for key in sample:
+                batch_dict[key].append(sample[key])
+
+        # for sample in batch:
+        #     batch_dict['text'].append(sample['text'])
+        #     batch_dict['indices'].append(sample['indices'])
+        #     batch_dict['scores'].append(sample['scores'])
+        #     batch_dict['id'].append(sample['id'])
+        #     batch_dict['trans_pos_indices'].append(sample['trans_pos_indices'])
+        #     batch_dict['word_pos_indices'].append(sample['word_pos_indices'])
+        #     batch_dict['fbk_vector'].append(sample['fbk_vector'])
 
         batch_dict['indices'] = torch.tensor(batch_dict['indices'], device=self.device)
         batch_dict['trans_pos_indices'] = torch.tensor(batch_dict['trans_pos_indices'], device=self.device)
@@ -78,4 +87,3 @@ class Collate:
         batch_dict['lens'] = trans_len
 
         return batch_dict
-

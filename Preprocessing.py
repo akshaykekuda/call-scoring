@@ -14,7 +14,6 @@ import contractions
 
 #Takes a call transcript as argument and returns a cleaned version of the text
 
-
 def preprocess_transcript(filename):
     try:
         file_in = open(filename, 'r')

@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 from sklearn import metrics
 
 
-def get_metrics(dataloader, model, scoring_criterion, optim):
+def get_metrics(dataloader, model, scoring_criterion, loss):
     id_arr = []
     text_arr = []
     attn_score_arr = []
@@ -26,16 +26,17 @@ def get_metrics(dataloader, model, scoring_criterion, optim):
     thresh = 0.5
     with torch.no_grad():
         for batch in tqdm(dataloader):
-            output, scores = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
-                                     batch['word_pos_indices'])
+            outputs, scores = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
+                                    batch['word_pos_indices'])
+            output = outputs[0]
             target = [sample[scoring_criterion].tolist() for sample in batch['scores']]
-            if optim == 'mse':
+            if loss == 'mse':
                 raw_proba = [None for i in range(len(scoring_criterion))]
                 pred = output.numpy()
-            elif optim == 'bce':
+            elif loss == 'bce':
                 raw_proba = torch.sigmoid(output)
                 pred = ((raw_proba > thresh).long()).tolist()
-            elif optim == 'cel':
+            elif loss == 'cel':
                 probs = torch.softmax(output, dim=1)
                 max_vals = torch.max(probs, dim=1)
                 raw_proba = probs[:, 1].tolist()
@@ -60,7 +61,7 @@ def get_metrics(dataloader, model, scoring_criterion, optim):
     print("target:", target_arr[:10])
     print("prediction:", pred_arr[:10])
 
-    if optim == 'mse':
+    if loss == 'mse':
         mse_error = mean_squared_error(target_arr, pred_arr)
         print("MSE Error = {}".format(mse_error))
         return mse_error, df
@@ -74,7 +75,7 @@ def get_metrics(dataloader, model, scoring_criterion, optim):
 
 
 def plot_roc(scoring_criteria, df, path):
-    plt.clf()
+    # plt.clf()
     for crit in scoring_criteria:
         y_pred_proba = df['RawProba ' + crit]
         y_true = df['True ' + crit]
@@ -85,8 +86,8 @@ def plot_roc(scoring_criteria, df, path):
         plt.xlabel("False Positivity Rate, bad calls class 1 ")
         plt.ylabel("True Positivity Rate, bad calls class 1")
         plt.legend(loc=4)
-    plt.show()
     plt.savefig(path)
+    plt.show()
 
 
 def predict_baseline_metrics(test_df, type):

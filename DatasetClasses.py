@@ -20,20 +20,21 @@ from nltk.tokenize import sent_tokenize
 from Preprocessing import preprocess_transcript
 import pickle
 
-scoring_criteria = ['Greeting', 'Professionalism', 'Confidence',
-                    'Cross Selling', 'Retention', 'Creates Incentive', 'Product Knowledge',
-                    'Documentation', 'Education', 'Processes', 'Category', 'CombinedPercentileScore']
+# scoring_criteria = ['Greeting', 'Professionalism', 'Confidence',
+#                     'Cross Selling', 'Retention', 'Creates Incentive', 'Product Knowledge',
+#                     'Documentation', 'Education', 'Processes', 'Category', 'CombinedPercentileScore']
 
 
 class CallDataset(Dataset):
     """Call transcript dataset."""
 
-    def __init__(self, df):
+    def __init__(self, df, scoring_criteria):
         """
         Args:
             file_name: The json file to make the dataset from
         """
         self.df = df
+        self.scoring_criteria = scoring_criteria
         word_tokenizer = get_tokenizer('basic_english')
         clean_files = []
         for f in df.file_name:
@@ -61,8 +62,12 @@ class CallDataset(Dataset):
             idx = idx.tolist()
         text = self.df.iloc[idx]['text']
         id = self.df.index[idx]
-        scores = self.df.iloc[idx][scoring_criteria]
+        scores = self.df.iloc[idx][self.scoring_criteria]
         sample = {'text': text, 'id': id, 'scores': scores}
+        # if self.use_feedback:
+        #     fbk_str = [criterion + " fbk_vector" for criterion in scoring_criteria]
+        #     fbk_vector = self.df.iloc[idx][fbk_str]
+        #     sample['fbk_vector'] = fbk_vector
         return sample
 
     def get_vocab(self):
@@ -72,3 +77,19 @@ class CallDataset(Dataset):
         output = open(path, 'wb')
         pickle.dump(self.vocab, output)
         output.close()
+
+
+class CallDatasetWithFbk(CallDataset):
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        text = self.df.iloc[idx]['text']
+        id = self.df.index[idx]
+        scores = self.df.iloc[idx][self.scoring_criteria]
+        sample = {'text': text, 'id': id, 'scores': scores}
+        fbk_str = [criterion + " fbk_vector" for criterion in self.scoring_criteria]
+        fbk_vector = self.df.iloc[idx][fbk_str]
+        # return series
+        for fbck_category in fbk_str:
+            sample[fbck_category] = fbk_vector[fbck_category]
+        return sample
