@@ -35,6 +35,8 @@ class CallDataset(Dataset):
         """
         self.df = df
         self.scoring_criteria = scoring_criteria
+        self.fbk_str = [criterion + " fbk_vector" for criterion in scoring_criteria]
+
         word_tokenizer = get_tokenizer('basic_english')
         clean_files = []
         for f in df.file_name:
@@ -87,9 +89,8 @@ class CallDatasetWithFbk(CallDataset):
         id = self.df.index[idx]
         scores = self.df.iloc[idx][self.scoring_criteria]
         sample = {'text': text, 'id': id, 'scores': scores}
-        fbk_str = [criterion + " fbk_vector" for criterion in self.scoring_criteria]
-        fbk_vector = self.df.iloc[idx][fbk_str]
+        fbk_vector = self.df.iloc[idx][self.fbk_str]
         # return series
-        for fbck_category in fbk_str:
-            sample[fbck_category] = fbk_vector[fbck_category]
+        for fbk_category in self.fbk_str:
+            sample[fbk_category] = fbk_vector[fbk_category]
         return sample

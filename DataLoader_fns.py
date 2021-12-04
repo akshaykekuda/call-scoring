@@ -64,22 +64,10 @@ class Collate:
                 sample['indices'].append(indices)
                 sample['word_pos_indices'].append(positional_indices)
 
-        # batch_dict = {'text': [], 'indices': [], 'scores': [], 'id': [],
-        #               'trans_pos_indices': [], 'word_pos_indices': [], 'fbk_vector': []}
-
         batch_dict = defaultdict(list)
         for sample in batch:
             for key in sample:
                 batch_dict[key].append(sample[key])
-
-        # for sample in batch:
-        #     batch_dict['text'].append(sample['text'])
-        #     batch_dict['indices'].append(sample['indices'])
-        #     batch_dict['scores'].append(sample['scores'])
-        #     batch_dict['id'].append(sample['id'])
-        #     batch_dict['trans_pos_indices'].append(sample['trans_pos_indices'])
-        #     batch_dict['word_pos_indices'].append(sample['word_pos_indices'])
-        #     batch_dict['fbk_vector'].append(sample['fbk_vector'])
 
         batch_dict['indices'] = torch.tensor(batch_dict['indices'], device=self.device)
         batch_dict['trans_pos_indices'] = torch.tensor(batch_dict['trans_pos_indices'], device=self.device)

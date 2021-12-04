@@ -64,10 +64,9 @@ def _parse_args():
     parser.add_argument('--trans_path', type=str, default='transcriptions/text_only/', help='link to transcripts')
     parser.add_argument('--device', type=str, default='cpu', help='device to use')
     parser.add_argument('--loss', type=str, default='bce', help='optimizer to use')
-    parser.add_argument('--k', type=int, default='20', help='number of top comments to use')
+    parser.add_argument('--k', type=int, default=20, help='number of top comments to use')
     parser.add_argument('--use_feedback', type=bool, default=False, help='use feedback comments')
     parser.add_argument('--num_workers', type=int, default=0, help='number of workers for the dataset')
-
     args = parser.parse_args()
     return args
 
@@ -147,7 +146,7 @@ def predict_overall_score(trainer, dataloader_transcripts_test):
         model = trainer.train_linear_regressor(scoring_criterion)
     else:
         raise ValueError("Cannot use the {} for Regression".format(args.loss))
-    torch.save(model.state_dict(), "overall_score.model")
+    torch.save(model.state_dict(), 'overall_score.model')
     print('Test MSE for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criterion, loss=args.loss)
     pred_df.to_pickle(args.save_path+'overall_score_pred_test.p')
@@ -171,7 +170,7 @@ def predict_scores(trainer, dataloader_transcripts_test):
     print('Test Metrics for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, loss=args.loss)
     plot_roc(scoring_criteria, pred_df, args.save_path+'auc.png')
-    pred_df.to_pickle(args.save_path+'call_score_pred_test.p')
+    pred_df.to_pickle(args.save_path+'call_score_test.p')
     return metrics
 
 
@@ -181,7 +180,7 @@ def predict_scores_mtl(trainer, dataloader_transcripts_test):
     print('Test Metrics for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, loss=args.loss)
     plot_roc(scoring_criteria, pred_df, args.save_path+'auc.png')
-    pred_df.to_pickle(args.save_path+'overall_cat_pred_test.p')
+    pred_df.to_pickle(args.save_path+'call_score_mtl_test.p')
     return metrics
 
 
@@ -212,7 +211,9 @@ def run_cross_validation(train_df, test_df):
         dataset_transcripts_dev = CallDataset(dev_df, scoring_criteria)
         dataset_transcripts_test = CallDataset(test_df, scoring_criteria)
 
-        max_trans_len, max_sent_len = get_max_len(train_df)
+        # max_trans_len, max_sent_len = get_max_len(train_df)
+        max_trans_len, max_sent_len = 512, 128
+
         vocab = dataset_transcripts_train.get_vocab()
         dataset_transcripts_train.save_vocab('vocab')
 
@@ -280,8 +281,8 @@ if __name__ == "__main__":
     else:
         scoring_criteria = [args.model]
     if args.use_feedback:
-        comment_obj = FeedbackComments(train_df)
-        top_k_comments = comment_obj.extract_top_k_comments(args.k, scoring_criteria)
+        comment_obj = FeedbackComments(train_df, args.k)
+        top_k_comments = comment_obj.extract_top_k_comments(scoring_criteria)
         train_df = comment_obj.df
     if args.train_samples > 0:
         train_df = balance_df(train_df, args.train_samples)

@@ -110,7 +110,10 @@ class TrainModel:
         class_weights = self.get_class_weights()
         model = self.get_model()
         if self.args.loss == 'cel':
-            loss_fn1 = nn.CrossEntropyLoss(weight=class_weights.squeeze())
+            if len(self.scoring_criteria) == 1:
+                loss_fn1 = nn.CrossEntropyLoss(weight=class_weights.squeeze())
+            else:
+                raise ValueError("Cannot use CEL in multilabel setting")
         elif self.args.loss == 'bce':
             positive_weights = class_weights[:, 1]
             loss_fn1 = nn.BCEWithLogitsLoss(pos_weight=positive_weights)
@@ -230,7 +233,6 @@ class TrainModel:
                 dev_acc.append(dev_metrics)
         print("Epoch Losses:", loss_arr)
         plt.plot(loss_arr)
-        plt.show()
         plt.savefig(self.args.save_path + 'loss.png')
         print("Training Evaluation Metrics: ", train_acc)
         print("Dev Evaluation Metrics: ", dev_acc)

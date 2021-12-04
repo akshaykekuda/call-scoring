@@ -36,6 +36,7 @@ def get_metrics(dataloader, model, scoring_criterion, loss):
             elif loss == 'bce':
                 raw_proba = torch.sigmoid(output)
                 pred = ((raw_proba > thresh).long()).tolist()
+                raw_proba = raw_proba.tolist()
             elif loss == 'cel':
                 probs = torch.softmax(output, dim=1)
                 max_vals = torch.max(probs, dim=1)
@@ -75,7 +76,7 @@ def get_metrics(dataloader, model, scoring_criterion, loss):
 
 
 def plot_roc(scoring_criteria, df, path):
-    # plt.clf()
+    plt.clf()
     for crit in scoring_criteria:
         y_pred_proba = df['RawProba ' + crit]
         y_true = df['True ' + crit]
