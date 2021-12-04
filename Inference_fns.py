@@ -35,6 +35,7 @@ def get_metrics(dataloader, model, scoring_criterion, optim):
             elif optim == 'bce':
                 raw_proba = torch.sigmoid(output)
                 pred = ((raw_proba > thresh).long()).tolist()
+                raw_proba = raw_proba.tolist()
             elif optim == 'cel':
                 probs = torch.softmax(output, dim=1)
                 max_vals = torch.max(probs, dim=1)

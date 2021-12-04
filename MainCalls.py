@@ -73,7 +73,9 @@ def predict_baseline(test_df):
 
 
 def predict_all_subscores(trainer, dataloader_transcripts_test):
-    scoring_criteria = ['Cross Selling', 'Creates Incentive', 'Product Knowledge', 'Education', 'Processes']
+    scoring_criteria = ['Greeting', 'Professionalism', 'Confidence',
+                    'Cross Selling', 'Retention', 'Creates Incentive', 'Product Knowledge',
+                    'Documentation', 'Education', 'Processes']
     if args.optim == 'bce':
         model = trainer.train_multi_label_model(scoring_criteria)
     else:
@@ -86,6 +88,19 @@ def predict_all_subscores(trainer, dataloader_transcripts_test):
     pred_df.to_pickle(args.save_path+'all_subscores_pred_test.p')
     return metrics
 
+def predict_best_subscores(trainer, dataloader_transcripts_test):
+    scoring_criteria = ['Cross Selling', 'Creates Incentive', 'Product Knowledge', 'Education', 'Processes']
+    if args.optim == 'bce':
+        model = trainer.train_multi_label_model(scoring_criteria)
+    else:
+        raise ValueError("Cannot use the {} for Multi Label Classification".format(args.optim))
+
+    torch.save(model.state_dict(), args.save_path+"call_encoder_bi_class.model")
+    print('Test Metrics for Call Transcripts dataset  is:')
+    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, optim=args.optim)
+    plot_roc(scoring_criteria, pred_df, args.save_path+'auc.png')
+    pred_df.to_pickle(args.save_path+'best_subscores_pred_test.p')
+    return metrics
 
 def predict_product_knowledge(trainer, dataloader_transcripts_test):
     scoring_criterion = ['Product Knowledge']
@@ -173,18 +188,18 @@ def run_cross_validation(train_df, test_df):
         print("Subscore distribution count in Training set\n", subscore_dist)
         dataset_transcripts_train = CallDataset(t_df)
         dataset_transcripts_dev = CallDataset(dev_df)
-        max_trans_len, max_sent_len = get_max_len(train_df)
+        max_trans_len, max_sent_len = 512, 512
         vocab = dataset_transcripts_train.get_vocab()
         dataset_transcripts_train.save_vocab('vocab')
 
         batch_size = args.batch_size
         c = Collate(vocab, args.device)
         dataloader_transcripts_train = DataLoader(dataset_transcripts_train, batch_size=batch_size, shuffle=True,
-                                                  num_workers=4, collate_fn=c.collate)
+                                                  num_workers=8, collate_fn=c.collate)
         dataloader_transcripts_dev = DataLoader(dataset_transcripts_dev, batch_size=batch_size, shuffle=False,
-                                                num_workers=4, collate_fn=c.collate)
+                                                num_workers=8, collate_fn=c.collate)
         dataloader_transcripts_test = DataLoader(dataset_transcripts_test, batch_size=batch_size, shuffle=False,
-                                                 num_workers=4, collate_fn=c.collate)
+                                                 num_workers=8, collate_fn=c.collate)
 
         embedding_model = KeyedVectors.load(word_embedding_pt[args.word_embedding], mmap='r')
         vocab_size = len(vocab)
@@ -211,6 +226,8 @@ def run_cross_validation(train_df, test_df):
             metrics = predict_cross_selling(trainer, dataloader_transcripts_test)
         elif args.model == 'Product_Knowledge':
             metrics = predict_product_knowledge(trainer, dataloader_transcripts_test)
+        elif args.model == 'BestSubScores':
+            metrics = predict_best_subscores(trainer, dataloader_transcripts_test)
         else:
             raise ValueError("Invalid Model Argument")
         kfold_results.append(metrics)

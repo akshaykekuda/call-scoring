@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import pickle5 as pickle
-
+import re
 
 def prepare_score_df(path_to_p, workgroup):
     with open(path_to_p, 'rb') as file:

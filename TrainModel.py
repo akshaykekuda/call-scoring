@@ -51,9 +51,9 @@ class TrainModel:
         else:
             raise ValueError("Invalid Attention Model argument")
 
-        if self.args.optim == 'mse' or 'bce':
+        if self.args.optim == 'mse':
             fcn = FCN_ReLu(2 * self.args.model_size, num_classes, self.args.dropout)
-        elif self.args.optim == 'cel':
+        elif self.args.optim == 'cel' or self.args.optim == 'bce':
             fcn = FCN_Tanh(2 * self.args.model_size, num_classes, self.args.dropout)
         else:
             raise ValueError("Invalid Optimizer argument")
@@ -155,7 +155,7 @@ class TrainModel:
                                           dtype=torch.float, device=self.args.device)
                 elif self.args.optim == 'cel':
                     target = torch.tensor([sample[scoring_criterion] for sample in batch['scores']],
-                                          dtype=torch.long, device=self.args.device).squeeze()
+                                          dtype=torch.long, device=self.args.device).squeeze(dim=-1)
                 else:
                     raise "invalid optimizer"
                 loss += loss_fn(output, target)

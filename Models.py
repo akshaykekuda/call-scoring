@@ -19,10 +19,10 @@ class FCN_Tanh(nn.Module):
     def __init__(self, input_size, num_classes, dropout_rate):
         super(FCN_Tanh, self).__init__()
         self.fcn = nn.Sequential(
-            nn.Linear(input_size, 10),
+            nn.Linear(input_size, 64),
             nn.Tanh(),
             nn.Dropout(dropout_rate),
-            nn.Linear(10, num_classes),
+            nn.Linear(64, num_classes),
         )
 
     def forward(self, x):
@@ -34,10 +34,10 @@ class FCN_ReLu(nn.Module):
     def __init__(self, input_size, num_classes, dropout_rate):
         super(FCN_ReLu, self).__init__()
         self.fcn = nn.Sequential(
-            nn.Linear(input_size, 10),
+            nn.Linear(input_size, 64),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
-            nn.Linear(10, num_classes),
+            nn.Linear(64, num_classes),
         )
 
     def forward(self, x):
@@ -229,8 +229,8 @@ class SentenceSelfAttention(nn.Module):
         self.position_encoding = nn.Embedding(max_trans_len, embed_dim, padding_idx=0)
 
     def forward(self, inputs, positional_indices):
-        # positional_encoding = self.position_encoding(positional_indices)
-        # att_in = inputs + positional_encoding
+        positional_encoding = self.position_encoding(positional_indices)
+        att_in = inputs + positional_encoding
         padding_mask = positional_indices == 0
         att_in = inputs
         query = key = value = att_in
@@ -252,11 +252,10 @@ class WordSelfAttention(nn.Module):
 
     def forward(self, inputs, positional_indices):
         embed_output = self.embedding(inputs)
-        embed_output_cat = embed_output.view(-1, *embed_output.size()[2:])
-        # position_encoding = self.position_encoding(positional_indices)
-        # position_encoding_cat = position_encoding.view(-1, *position_encoding.size()[2:])
+        positional_encoding = self.position_encoding(positional_indices)
+        attn_in = embed_output+positional_encoding
+        attn_in = attn_in.view(-1, *attn_in.size()[2:])
         padding_mask = (positional_indices == 0).view(-1, *positional_indices.size()[2:])
-        attn_in = embed_output_cat
         query = key = value = attn_in
         attn_output, attn_output_weights = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
         #force pad attention outputs
