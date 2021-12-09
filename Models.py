@@ -14,7 +14,6 @@ import numpy as np
 import torch.nn.functional as F
 import copy
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-from transformers import LongformerForSequenceClassification
 
 
 class FCN_Tanh(nn.Module):
