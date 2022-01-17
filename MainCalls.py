@@ -55,7 +55,7 @@ def _parse_args():
     parser.add_argument('--epochs', type=int, default=1, help='epochs to run')
     parser.add_argument('--train_samples', type=int, default=50, help='number of samples for training')
     parser.add_argument('--word_embedding', type=str, default='glove', help='word embedding to use')
-    parser.add_argument('--attention', type=str, default='hsan', help='attention mechanism to use')
+    parser.add_argument('--attention', type=str, default='hs2an', help='attention mechanism to use')
     parser.add_argument('--save_path', type=str, default='logs/test/', help='path to save checkpoints')
     parser.add_argument('--num_heads', type=int, default=1, help='number of attention heads')
     parser.add_argument('--model_size', type=int, default=64, help='model size')
@@ -65,12 +65,15 @@ def _parse_args():
     parser.add_argument('--device', type=str, default='cpu', help='device to use')
     parser.add_argument('--loss', type=str, default='bce', help='optimizer to use')
     parser.add_argument('--k', type=int, default=20, help='number of top comments to use')
-    parser.add_argument('--use_feedback', type=bool, default=False, help='use feedback comments')
     parser.add_argument('--num_workers', type=int, default=0, help='number of workers for the dataset')
+    parser.add_argument("--save_model", default=False, action="store_true")
+    parser.add_argument("--use_feedback", default=False, action="store_true")
+    parser.add_argument("--num_layers", default=1, type=int, help="num of layers of self attention")
+
     args = parser.parse_args()
     return args
 
-
+"""
 def predict_baseline(test_df):
     print('Test Baseline Model Metrics:')
     predict_baseline_metrics(test_df, type='bi_class')
@@ -152,7 +155,7 @@ def predict_overall_score(trainer, dataloader_transcripts_test):
     pred_df.to_pickle(args.save_path+'overall_score_pred_test.p')
     print('Test MSE for Call Transcripts dataset  is:')
     return metrics
-
+"""
 
 def predict_scores(trainer, dataloader_transcripts_test):
     if len(scoring_criteria) == 1:
@@ -166,7 +169,8 @@ def predict_scores(trainer, dataloader_transcripts_test):
             raise ValueError("cannot run training")
     else:
         model = trainer.train_multi_label_model()
-    # torch.save(model.state_dict(), args.save_path+"call_score.model")
+    if args.save_model:
+        torch.save(model.state_dict(), args.save_path+"call_score.model")
     print('Test Metrics for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, loss=args.loss)
     plot_roc(scoring_criteria, pred_df, args.save_path+'auc.png')
@@ -176,8 +180,9 @@ def predict_scores(trainer, dataloader_transcripts_test):
 
 def predict_scores_mtl(trainer, dataloader_transcripts_test):
     model = trainer.train_mtl_model()
-    # torch.save(model.state_dict(), args.save_path+"call_score_mtl.model")
-    print('Test Metrics for Call Transcripts dataset  is:')
+    if args.save_model:
+        torch.save(model.state_dict(), args.save_path+"call_score_mtl.model")
+    print('Test Metrics  for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, loss=args.loss)
     plot_roc(scoring_criteria, pred_df, args.save_path+'auc.png')
     pred_df.to_pickle(args.save_path+'call_score_mtl_test.p')

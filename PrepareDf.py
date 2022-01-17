@@ -12,7 +12,8 @@ def prepare_score_df(path_to_p, workgroup):
             'DisplayAnswer',
             'UserComments']
     if workgroup == 'all':
-        calls_df = df[(df.QuestionnaireName == 'Call Interaction')].copy()
+        calls_df = df[(df.QuestionnaireName == 'Call Interaction') & ((df.WorkgroupQueue == 'Customer Service')
+                                                                      |(df.WorkgroupQueue == 'Sales'))].copy()
     elif workgroup == 'CustomerService':
         calls_df = df[(df.QuestionnaireName == 'Call Interaction') & (df.WorkgroupQueue == 'Customer Service')].copy()
     elif workgroup == 'Sales':
@@ -45,16 +46,6 @@ def prepare_score_df(path_to_p, workgroup):
         # score_df[criteria] = score_df[criteria].apply(lambda x: 1 if x >= q_max else 0) #used as binary class
         score_df[criteria + ' Feedback'] = (calls_df.UserComments[i::10]).values
     score_df = score_df.loc[~score_df.index.duplicated(keep='last')]
-    #
-    # score_comment_df = pd.DataFrame()
-    # score_comment_df['WorkgroupQueue'] = calls_df.WorkgroupQueue[::10]
-    # score_comment_df['RecordingDate'] = calls_df.RecordingDate[::10]
-    # score_comment_df.index = calls_df.InteractionIdKey[::10]
-    # for i in range(10):
-    #     criteria = q_text[i]
-    #     score_comment_df[criteria] = (calls_df.UserComments[i::10]).values
-    # score_comment_df = score_comment_df.loc[~score_comment_df.index.duplicated(keep='last')]
-
     print("Dataframe creation done")
 
     return score_df, q_text

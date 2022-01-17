@@ -229,11 +229,11 @@ class HSAN(nn.Module):
 
 class HS2AN(nn.Module):
     def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len,
-                 max_sent_len, num_heads, dropout_rate):
+                 max_sent_len, num_heads, dropout_rate, num_layers):
         super(HS2AN, self).__init__()
         self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, 2 * hidden_size, weights_matrix,
                                                      max_sent_len, num_heads, dropout_rate)
-        self.sentence_self_attention = SentenceSelfAttention(2 * hidden_size, num_heads, max_trans_len, dropout_rate)
+        self.sentence_self_attention = SentenceSelfAttention(2 * hidden_size, num_heads, max_trans_len, dropout_rate, num_layers)
 
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
         att1 = self.word_self_attention.forward(inputs, word_pos_indices)
@@ -242,20 +242,24 @@ class HS2AN(nn.Module):
 
 
 class SentenceSelfAttention(nn.Module):
-    def __init__(self, embed_dim, num_heads, max_trans_len, dropout_rate):
+    def __init__(self, embed_dim, num_heads, max_trans_len, dropout_rate, num_layers):
         super(SentenceSelfAttention, self).__init__()
         self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout_rate, batch_first=True)
         self.position_encoding = nn.Embedding(max_trans_len, embed_dim, padding_idx=0)
+        self.num_layers = num_layers
 
     def forward(self, inputs, positional_indices):
         positional_encoding = self.position_encoding(positional_indices)
         att_in = inputs + positional_encoding
         padding_mask = positional_indices == 0
-        query = key = value = att_in
-        attn_output, attn_output_weights = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
+        for i in range(self.num_layers):
+            query = key = value = att_in
+            att_in, attn_output_weights = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
+        attn_output = att_in
         # mask_for_pads = (~padding_mask).unsqueeze(-1).expand(-1, -1, attn_output.size(-1))
         # attn_output *= mask_for_pads
-        attn_output = torch.mean(attn_output, dim=1, keepdim=False)
+        attn_output_inter = torch.mean(attn_output[:, 1:-1, :], dim=1, keepdim=False)
+        attn_output = torch.cat((attn_output[:, 0, :], attn_output_inter, attn_output[:, -1, :]), dim=-1)
         return attn_output, attn_output_weights.squeeze(2)
 
 

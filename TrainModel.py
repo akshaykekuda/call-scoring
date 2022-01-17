@@ -47,20 +47,20 @@ class TrainModel:
                            self.max_trans_len, self.max_sent_len, self.args.num_heads, self.args.dropout)
         elif self.args.attention == 'hs2an':
             encoder = HS2AN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                            self.max_trans_len, self.max_sent_len, self.args.num_heads, self.args.dropout)
+                            self.max_trans_len, self.max_sent_len, self.args.num_heads, self.args.dropout, self.args.num_layers)
         else:
             raise ValueError("Invalid Attention Model argument")
 
         if self.args.loss == 'mse':
-            fcn = FCN_ReLu(2 * self.args.model_size, len(self.scoring_criteria), self.args.dropout)
+            fcn = FCN_ReLu(6 * self.args.model_size, len(self.scoring_criteria), self.args.dropout)
         elif self.args.loss == 'cel':
-            fcn = FCN_Tanh(2 * self.args.model_size, len(self.scoring_criteria)*2, self.args.dropout)
+            fcn = FCN_Tanh(6 * self.args.model_size, len(self.scoring_criteria)*2, self.args.dropout)
         elif self.args.loss == 'bce':
-            fcn = FCN_Tanh(2 * self.args.model_size, len(self.scoring_criteria), self.args.dropout)
+            fcn = FCN_Tanh(6 * self.args.model_size, len(self.scoring_criteria), self.args.dropout)
         else:
             raise ValueError("Invalid Optimizer argument")
 
-        mtl_head = FCN_MTL(2 * self.args.model_size, self.args.k, self.args.dropout)
+        mtl_head = FCN_MTL(6 * self.args.model_size, self.args.k, self.args.dropout)
 
         if self.args.use_feedback:
             model = EncoderMTL(encoder, fcn, mtl_head, len(self.scoring_criteria))
@@ -158,6 +158,7 @@ class TrainModel:
                 model_optimizer.zero_grad()
                 epoch_loss += loss.detach().item()
                 loss.backward()
+                nn.utils.clip_grad_norm_(model.parameters(), max_norm=5)
                 model_optimizer.step()
             scheduler.step()
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
