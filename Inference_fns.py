@@ -25,7 +25,6 @@ def get_metrics(dataloader, model, scoring_criterion, loss):
     raw_pred_arr = []
     model.eval()
     thresh = 0.5
-    raw_out_arr = []
     with torch.no_grad():
         for batch in tqdm(dataloader):
             outputs, scores = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
@@ -52,12 +51,10 @@ def get_metrics(dataloader, model, scoring_criterion, loss):
             id_arr.extend(batch['id'])
             text_arr.extend(batch['text'])
             attn_score_arr.extend(scores.numpy())
-            raw_out_arr.extend(output.numpy())
-        raw_out_df = pd.DataFrame(raw_out_arr, columns=['RawOut ' + category for category in scoring_criterion])
         raw_pred_df = pd.DataFrame(raw_pred_arr, columns=['RawProba ' + category for category in scoring_criterion])
         pred_df = pd.DataFrame(pred_arr, columns=['Pred ' + category for category in scoring_criterion])
         target_df = pd.DataFrame(target_arr, columns=['True ' + category for category in scoring_criterion])
-        df = pd.concat((pred_df, target_df, raw_pred_df, raw_out_df), axis=1)
+        df = pd.concat((pred_df, target_df, raw_pred_df), axis=1)
         df['id'] = id_arr
         df['text'] = text_arr
         df['scores'] = attn_score_arr
