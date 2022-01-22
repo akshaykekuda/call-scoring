@@ -27,7 +27,7 @@ def get_metrics(dataloader, model, scoring_criterion, loss):
     thresh = 0.5
     with torch.no_grad():
         for batch in tqdm(dataloader):
-            outputs, scores = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
+            outputs, scores, _ = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
                                     batch['word_pos_indices'])
             output = outputs[0]
             target = [sample[scoring_criterion].tolist() for sample in batch['scores']]

@@ -28,8 +28,8 @@ import numpy as np
 import torch
 import pandas as pd
 import time
-np.random.seed(0)
-torch.manual_seed(0)
+np.random.seed(1000)
+torch.manual_seed(1000)
 
 path_to_handscored_p = 'ScoringDetail_viw_all_subscore.p' 
 word_embedding_pt = dict(glove='../word_embeddings/glove_word_vectors',
@@ -170,7 +170,7 @@ def predict_scores(trainer, dataloader_transcripts_test):
     else:
         model = trainer.train_multi_label_model()
     if args.save_model:
-        torch.save(model.state_dict(), args.save_path+"call_score.model")
+        torch.save(model, args.save_path+"call_score.model")
     print('Test Metrics for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, loss=args.loss)
     plot_roc(scoring_criteria, pred_df, args.save_path+'auc.png')
@@ -181,7 +181,7 @@ def predict_scores(trainer, dataloader_transcripts_test):
 def predict_scores_mtl(trainer, dataloader_transcripts_test):
     model = trainer.train_mtl_model()
     if args.save_model:
-        torch.save(model.state_dict(), args.save_path+"call_score_mtl.model")
+        torch.save(model, args.save_path+"call_score_mtl.model")
     print('Test Metrics  for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, loss=args.loss)
     plot_roc(scoring_criteria, pred_df, args.save_path+'auc.png')

@@ -151,7 +151,7 @@ class TrainModel:
             epoch_loss = 0
             for batch in tqdm(self.dataloader_train):
                 loss = 0
-                outputs, scores = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
+                outputs, scores, _ = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
                                         batch['word_pos_indices'])
                 targets = self.get_score_target(batch)
                 loss += loss_fn(outputs[0], targets)
@@ -208,7 +208,7 @@ class TrainModel:
             epoch_loss = 0
             for batch in tqdm(self.dataloader_train):
                 loss = 0
-                outputs, scores = mtl_model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
+                outputs, scores, _ = mtl_model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
                                             batch['word_pos_indices'])
                 targets = [self.get_score_target(batch)]
                 target2 = [torch.tensor(batch[criterion+" fbk_vector"], dtype=float, device=self.args.device)

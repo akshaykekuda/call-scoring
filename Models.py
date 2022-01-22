@@ -14,7 +14,9 @@ import numpy as np
 import torch.nn.functional as F
 import copy
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from Custom_Multihead_Attention import custom_multi_head_attention_forward
 
+F.multi_head_attention_forward = custom_multi_head_attention_forward
 
 class FCN_Tanh(nn.Module):
     def __init__(self, input_size, num_classes, dropout_rate):
@@ -237,14 +239,16 @@ class HS2AN(nn.Module):
 
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
         att1 = self.word_self_attention.forward(inputs, word_pos_indices)
-        att2, sentence_att_scores = self.sentence_self_attention.forward(att1, trans_pos_indices)
-        return att2, sentence_att_scores
+        att2, sentence_att_scores, value = self.sentence_self_attention.forward(att1, trans_pos_indices)
+        # print(sentence_att_scores.shape)
+        return att2, sentence_att_scores, value
 
 
 class SentenceSelfAttention(nn.Module):
     def __init__(self, embed_dim, num_heads, max_trans_len, dropout_rate, num_layers):
         super(SentenceSelfAttention, self).__init__()
         self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout_rate, batch_first=True)
+        # self.multihead_attn = CustomMultiHeadAttention(embed_dim, num_heads, dropout=dropout_rate, batch_first=True)
         self.position_encoding = nn.Embedding(max_trans_len, embed_dim, padding_idx=0)
         self.num_layers = num_layers
 
@@ -260,7 +264,7 @@ class SentenceSelfAttention(nn.Module):
         # attn_output *= mask_for_pads
         attn_output_inter = torch.mean(attn_output[:, 1:-1, :], dim=1, keepdim=False)
         attn_output = torch.cat((attn_output[:, 0, :], attn_output_inter, attn_output[:, -1, :]), dim=-1)
-        return attn_output, attn_output_weights.squeeze(2)
+        return attn_output, attn_output_weights.squeeze(2), value
 
 
 class WordSelfAttention(nn.Module):
@@ -268,8 +272,9 @@ class WordSelfAttention(nn.Module):
         super(WordSelfAttention, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
         self.embedding.load_state_dict({'weight': weights_matrix})
-        self.multihead_attn = nn.MultiheadAttention(embedding_size, dropout=dropout_rate, num_heads=num_heads,
-                                                    batch_first=True)
+        self.multihead_attn = nn.MultiheadAttention(embedding_size, dropout=dropout_rate, num_heads=num_heads, batch_first=True)
+        # self.multihead_attn = CustomMultiHeadAttention(embedding_size, dropout=dropout_rate, num_heads=num_heads, batch_first=True)
+
         self.ffn = nn.Linear(embedding_size, out_dim)
         self.position_encoding = nn.Embedding(max_sent_len, embedding_size, padding_idx=0)
 
@@ -314,13 +319,15 @@ class EncoderMTL(nn.Module):
 
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
         outputs = []
-        encoder_out, attn_scores = self.encoder.forward(inputs, lens, trans_pos_indices, word_pos_indices)
+        encoder_out, attn_scores, value = self.encoder.forward(inputs, lens, trans_pos_indices, word_pos_indices)
         fcn_output = self.fcn.forward(encoder_out)
         outputs.append(fcn_output)
         for i in range(self.N):
             outputs.append(self.mtl_head[i].forward(encoder_out))
-        return outputs, attn_scores
+        return outputs, attn_scores, value
 
 
 def get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
+
+
