@@ -278,7 +278,7 @@ class WordSelfAttention(nn.Module):
         self.multihead_attn = TransformerEncoderLayer(d_model=embedding_size, nhead=num_heads, dropout=dropout_rate, batch_first=True, dim_feedforward =2*embedding_size)
         self.ffn = nn.Linear(embedding_size, out_dim)
         self.position_encoding = nn.Embedding(max_sent_len, embedding_size, padding_idx=0)
-        self.num_layers = 1
+        self.num_layers = 3
 
     def forward(self, inputs, positional_indices):
         embed_output = self.embedding(inputs)

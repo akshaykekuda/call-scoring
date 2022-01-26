@@ -43,6 +43,11 @@ def get_metrics(dataloader, model, scoring_criterion, loss):
                 max_vals = torch.max(probs, dim=1)
                 raw_proba = probs[:, 1].tolist()
                 pred = max_vals[1].tolist()
+                if probs.isnan().sum()>0:
+                    print("Detected NAN in probability")
+                    print(batch)
+                    print(output)
+                    continue
             else:
                 raise ValueError("Cannot do inference")
             raw_pred_arr.extend(raw_proba)
