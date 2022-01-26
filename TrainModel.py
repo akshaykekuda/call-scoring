@@ -158,7 +158,7 @@ class TrainModel:
                 model_optimizer.zero_grad()
                 epoch_loss += loss.detach().item()
                 loss.backward()
-                nn.utils.clip_grad_norm_(model.parameters(), max_norm=5)
+                nn.utils.clip_grad_value_(model.parameters(), clip_value=5)
                 model_optimizer.step()
             scheduler.step()
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
