@@ -154,7 +154,7 @@ class HAN(nn.Module):
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
         att1 = self.word_attention.forward(inputs, word_pos_indices)
         att2, sentence_att_scores = self.sentence_attention.forward(att1, trans_pos_indices)
-        return att2, sentence_att_scores
+        return att2, sentence_att_scores, None
 
 
 class SentenceAttention(nn.Module):
@@ -220,23 +220,23 @@ class WordAttention(nn.Module):
 
 class HSAN(nn.Module):
     def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len,
-                 max_sent_len, num_heads, dropout_rate):
+                 num_heads, dropout_rate, num_layers):
         super(HSAN, self).__init__()
         self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
-        self.sentence_self_attention = SentenceSelfAttention(2 * hidden_size, num_heads, max_trans_len, dropout_rate)
+        self.sentence_self_attention = SentenceSelfAttention(2 * hidden_size, num_heads, max_trans_len, dropout_rate, num_layers)
 
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
         att1 = self.word_attention.forward(inputs, word_pos_indices)
-        att2, sentence_att_scores = self.sentence_self_attention.forward(att1, trans_pos_indices)
-        return att2, sentence_att_scores
+        att2, sentence_att_scores, value = self.sentence_self_attention.forward(att1, trans_pos_indices)
+        return att2, sentence_att_scores, value
 
 
 class HS2AN(nn.Module):
     def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len,
-                 max_sent_len, num_heads, dropout_rate, num_layers):
+                 max_sent_len, num_heads, dropout_rate, num_layers, word_num_layers):
         super(HS2AN, self).__init__()
         self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, 2 * hidden_size, weights_matrix,
-                                                     max_sent_len, num_heads, dropout_rate)
+                                                     max_sent_len, num_heads, dropout_rate, word_num_layers)
         self.sentence_self_attention = SentenceSelfAttention(2 * hidden_size, num_heads, max_trans_len, dropout_rate,
                                                              num_layers)
 
@@ -270,7 +270,7 @@ class SentenceSelfAttention(nn.Module):
 
 
 class WordSelfAttention(nn.Module):
-    def __init__(self, vocab_size, embedding_size, out_dim, weights_matrix, max_sent_len, num_heads, dropout_rate):
+    def __init__(self, vocab_size, embedding_size, out_dim, weights_matrix, max_sent_len, num_heads, dropout_rate, num_layers):
         super(WordSelfAttention, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
         self.embedding.load_state_dict({'weight': weights_matrix})
@@ -278,7 +278,7 @@ class WordSelfAttention(nn.Module):
         self.multihead_attn = TransformerEncoderLayer(d_model=embedding_size, nhead=num_heads, dropout=dropout_rate, batch_first=True, dim_feedforward =2*embedding_size)
         self.ffn = nn.Linear(embedding_size, out_dim)
         self.position_encoding = nn.Embedding(max_sent_len, embedding_size, padding_idx=0)
-        self.num_layers = 3
+        self.num_layers = num_layers
 
     def forward(self, inputs, positional_indices):
         embed_output = self.embedding(inputs)

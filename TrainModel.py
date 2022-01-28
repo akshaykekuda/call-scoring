@@ -18,16 +18,14 @@ import torch.optim as optim
 
 
 class TrainModel:
-    def __init__(self, dataloader_train, dataloader_dev, vocab_size, vec_size, weights_matrix, args, max_trans_len,
-                 max_sent_len, scoring_criteria):
+    def __init__(self, dataloader_train, dataloader_dev, vocab_size, vec_size, weights_matrix, args,
+                scoring_criteria):
         self.dataloader_train = dataloader_train
         self.dataloader_dev = dataloader_dev
         self.vocab_size = vocab_size
         self.vec_size = vec_size
         self.weights_matrix = weights_matrix
         self.args = args
-        self.max_trans_len = max_trans_len
-        self.max_sent_len = max_sent_len
         self.scoring_criteria = scoring_criteria
 
     def train(self):
@@ -41,13 +39,15 @@ class TrainModel:
             encoder = GRUAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
                                    self.args.dropout)
         elif self.args.attention == 'han':
-            encoder = HAN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix, self.args.dropout)
+            #to take care of FFN size
+            encoder = HAN(self.vocab_size, self.vec_size, 3*self.args.model_size, self.weights_matrix, self.args.dropout)
         elif self.args.attention == 'hsan':
             encoder = HSAN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                           self.max_trans_len, self.max_sent_len, self.args.num_heads, self.args.dropout)
+                           self.args.max_trans_len, self.args.num_heads, self.args.dropout, self.args.num_layers)
         elif self.args.attention == 'hs2an':
             encoder = HS2AN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                            self.max_trans_len, self.max_sent_len, self.args.num_heads, self.args.dropout, self.args.num_layers)
+                            self.args.max_trans_len, self.args.max_sent_len, self.args.num_heads, self.args.dropout, self.args.num_layers,
+                            self.args.word_num_layers)
         else:
             raise ValueError("Invalid Attention Model argument")
 

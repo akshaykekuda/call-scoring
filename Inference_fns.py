@@ -45,8 +45,6 @@ def get_metrics(dataloader, model, scoring_criterion, loss):
                 pred = max_vals[1].tolist()
                 if probs.isnan().sum()>0:
                     print("Detected NAN in probability")
-                    print(batch)
-                    print(output)
                     continue
             else:
                 raise ValueError("Cannot do inference")

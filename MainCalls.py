@@ -69,6 +69,9 @@ def _parse_args():
     parser.add_argument("--save_model", default=False, action="store_true")
     parser.add_argument("--use_feedback", default=False, action="store_true")
     parser.add_argument("--num_layers", default=1, type=int, help="num of layers of self attention")
+    parser.add_argument("--word_num_layers", default=1, type=int, help="num of layers of self attention on word level")
+    parser.add_argument("--max_trans_len", default=512, type=int, help="max len of transcripts")
+    parser.add_argument("--max_sent_len", default=128, type=int, help="max len of sentence in transcript")
 
     args = parser.parse_args()
     return args
@@ -217,7 +220,6 @@ def run_cross_validation(train_df, test_df):
         dataset_transcripts_test = CallDataset(test_df, scoring_criteria)
 
         # max_trans_len, max_sent_len = get_max_len(train_df)
-        max_trans_len, max_sent_len = 512, 128
 
         vocab = dataset_transcripts_train.get_vocab()
         dataset_transcripts_train.save_vocab('vocab')
@@ -245,7 +247,7 @@ def run_cross_validation(train_df, test_df):
         weights_matrix[0] = np.mean(weights_matrix, axis=0)
         weights_matrix = torch.tensor(weights_matrix)
         trainer = TrainModel(dataloader_transcripts_train, dataloader_transcripts_dev, vocab_size, embedding_size,
-                             weights_matrix, args, max_trans_len, max_sent_len, scoring_criteria)
+                             weights_matrix, args, scoring_criteria)
         if args.use_feedback:
             metrics = predict_scores_mtl(trainer, dataloader_transcripts_test)
         else:
