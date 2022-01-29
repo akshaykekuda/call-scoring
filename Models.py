@@ -264,8 +264,9 @@ class SentenceSelfAttention(nn.Module):
         attn_output = att_in
         # mask_for_pads = (~padding_mask).unsqueeze(-1).expand(-1, -1, attn_output.size(-1))
         # attn_output *= mask_for_pads
-        attn_output_inter = torch.mean(attn_output[:, 1:-1, :], dim=1, keepdim=False)
-        attn_output = torch.cat((attn_output[:, 0, :], attn_output_inter, attn_output[:, -1, :]), dim=-1)
+        # attn_output_inter = torch.mean(attn_output[:, 1:-1, :], dim=1, keepdim=False)
+        # attn_output = torch.cat((attn_output[:, 0, :], attn_output_inter, attn_output[:, -1, :]), dim=-1)
+        attn_output = attn_output[:, 0, :]
         return attn_output, attn_output_weights.squeeze(2), att_in
 
 
@@ -292,7 +293,8 @@ class WordSelfAttention(nn.Module):
         # padding_mask = (inputs == 1).view(-1, *inputs.size()[2:])
         # mask_for_pads = (~padding_mask).unsqueeze(-1).expand(-1, -1, attn_output.size(-1))
         # attn_output *= mask_for_pads
-        sent_embedding = torch.mean(attn_in_concat, dim=1, keepdim=False)
+        # sent_embedding = torch.mean(attn_in_concat, dim=1, keepdim=False)
+        sent_embedding = attn_in_concat[:, 0, :]
         sent_embedding = sent_embedding.reshape(*inputs.size()[0:2], -1)
         # sent_embedding = torch.nan_to_num(sent_embedding)
         sent_embedding = self.ffn(sent_embedding)
