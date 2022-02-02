@@ -52,11 +52,11 @@ class TrainModel:
             raise ValueError("Invalid Attention Model argument")
 
         if self.args.loss == 'mse':
-            fcn = FCN_ReLu(2*self.args.model_size, len(self.scoring_criteria), self.args.dropout)
+            fcn = FCN_ReLu(4*self.args.model_size, len(self.scoring_criteria), self.args.dropout)
         elif self.args.loss == 'cel':
-            fcn = FCN_Tanh(2*self.args.model_size, len(self.scoring_criteria)*2, self.args.dropout)
+            fcn = FCN_Tanh(4*self.args.model_size, len(self.scoring_criteria)*2, self.args.dropout)
         elif self.args.loss == 'bce':
-            fcn = FCN_Tanh(2*self.args.model_size, len(self.scoring_criteria), self.args.dropout)
+            fcn = FCN_Tanh(4*self.args.model_size, len(self.scoring_criteria), self.args.dropout)
         else:
             raise ValueError("Invalid Optimizer argument")
 

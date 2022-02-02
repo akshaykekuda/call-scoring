@@ -266,7 +266,9 @@ class SentenceSelfAttention(nn.Module):
         # attn_output *= mask_for_pads
         # attn_output_inter = torch.mean(attn_output[:, 1:-1, :], dim=1, keepdim=False)
         # attn_output = torch.cat((attn_output[:, 0, :], attn_output_inter, attn_output[:, -1, :]), dim=-1)
-        attn_output = attn_output[:, 0, :]
+        cls_em = attn_output[:, 0, :]
+        mean_em = torch.mean(attn_output[:, 1:, :], dim=1, keepdim=False)
+        attn_output = torch.cat((cls_em, mean_em), dim=-1)
         return attn_output, attn_output_weights.squeeze(2), att_in
 
 
@@ -277,7 +279,7 @@ class WordSelfAttention(nn.Module):
         self.embedding.load_state_dict({'weight': weights_matrix})
         # self.multihead_attn = nn.MultiheadAttention(embedding_size, dropout=dropout_rate, num_heads=num_heads, batch_first=True)
         self.multihead_attn = TransformerEncoderLayer(d_model=embedding_size, nhead=num_heads, dropout=dropout_rate, batch_first=True, dim_feedforward =2*embedding_size)
-        self.ffn = nn.Linear(embedding_size, out_dim)
+        self.ffn = nn.Linear(2*embedding_size, out_dim)
         self.position_encoding = nn.Embedding(max_sent_len, embedding_size, padding_idx=0)
         self.num_layers = num_layers
 
@@ -294,7 +296,9 @@ class WordSelfAttention(nn.Module):
         # mask_for_pads = (~padding_mask).unsqueeze(-1).expand(-1, -1, attn_output.size(-1))
         # attn_output *= mask_for_pads
         # sent_embedding = torch.mean(attn_in_concat, dim=1, keepdim=False)
-        sent_embedding = attn_in_concat[:, 0, :]
+        cls_em = attn_in_concat[:, 0, :]
+        mean_em = torch.mean(attn_in_concat[:, 1:, :], dim=1, keepdim=False)
+        sent_embedding = torch.cat((cls_em, mean_em), dim=-1)
         sent_embedding = sent_embedding.reshape(*inputs.size()[0:2], -1)
         # sent_embedding = torch.nan_to_num(sent_embedding)
         sent_embedding = self.ffn(sent_embedding)
