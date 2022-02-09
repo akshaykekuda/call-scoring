@@ -24,10 +24,10 @@ class FCN_Tanh(nn.Module):
     def __init__(self, input_size, num_classes, dropout_rate):
         super(FCN_Tanh, self).__init__()
         self.fcn = nn.Sequential(
-            nn.Linear(input_size, 64),
+            nn.Linear(input_size, 10),
             nn.Tanh(),
             nn.Dropout(dropout_rate),
-            nn.Linear(64, num_classes),
+            nn.Linear(10, num_classes),
         )
 
     def forward(self, x):
@@ -39,10 +39,10 @@ class FCN_ReLu(nn.Module):
     def __init__(self, input_size, num_classes, dropout_rate):
         super(FCN_ReLu, self).__init__()
         self.fcn = nn.Sequential(
-            nn.Linear(input_size, 64),
+            nn.Linear(input_size, 10),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
-            nn.Linear(64, num_classes),
+            nn.Linear(10, num_classes),
         )
 
     def forward(self, x):

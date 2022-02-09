@@ -60,7 +60,7 @@ class TrainModel:
         else:
             raise ValueError("Invalid Optimizer argument")
 
-        mtl_head = FCN_MTL(self.args.model_size, self.args.k, self.args.dropout)
+        mtl_head = FCN_MTL(4*self.args.model_size, self.args.k, self.args.dropout)
 
         if self.args.use_feedback:
             model = EncoderMTL(encoder, fcn, mtl_head, len(self.scoring_criteria))
@@ -89,7 +89,7 @@ class TrainModel:
         model = self.get_model()
         loss_fn = nn.CrossEntropyLoss(weight=class_weights.squeeze())
         model_optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
-        scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
+        scheduler = MultiStepLR(model_optimizer, milestones=[10, 15, 20], gamma=0.1)
         model = self.train_model(self.args.epochs, model, loss_fn, model_optimizer, scheduler)
         return model
 
