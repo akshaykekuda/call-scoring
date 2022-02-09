@@ -1,0 +1,28 @@
+#!/bin/bash
+
+source activate call_scoring
+
+SAVE_DIR='logs/mhattn_optim_b4_04/'
+MODEL='BestSubScores'
+BS=4
+EP=20
+TRAIN_SAMPLES=0
+ATTENTION='hs2an'
+TRANSCRIPTS_PATH='transcriptions/text_only/'
+LOSS_FN='bce'
+DIM=128
+DP=0.5
+HEADS=4
+LR=1e-6
+K=25
+NUM_WORKERS=0
+NUM_LAYERS=1
+WORD_NUM_LAYERS=1
+CALL_TYPE='all'
+
+mkdir $SAVE_DIR
+python MainCalls.py --save_path $SAVE_DIR --model "$MODEL" --batch_size $BS \
+--epochs $EP --train_samples $TRAIN_SAMPLES --attention $ATTENTION --trans_path $TRANSCRIPTS_PATH \
+--loss $LOSS_FN --model_size $DIM --dropout $DP --num_heads $HEADS --lr $LR \
+--k $K --num_workers $NUM_WORKERS --workgroup $CALL_TYPE \
+> $SAVE_DIR"log" 2>&1 &
