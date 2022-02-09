@@ -262,8 +262,10 @@ class SentenceSelfAttention(nn.Module):
         attn_output = att_in
         # mask_for_pads = (~padding_mask).unsqueeze(-1).expand(-1, -1, attn_output.size(-1))
         # attn_output *= mask_for_pads
-        attn_output_inter = torch.mean(attn_output[:, 1:-1, :], dim=1, keepdim=False)
-        attn_output = torch.cat((attn_output[:, 0, :], attn_output_inter, attn_output[:, -1, :]), dim=-1)
+        # attn_output_inter = torch.mean(attn_output[:, 1:-1, :], dim=1, keepdim=False)
+        # attn_output = torch.cat((attn_output[:, 0, :], attn_output_inter, attn_output[:, -1, :]), dim=-1)
+        attn_output = torch.mean(attn_output, dim=1, keepdim=False)
+        
         return attn_output, attn_output_weights.squeeze(2), value
 
 
