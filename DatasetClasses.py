@@ -28,12 +28,13 @@ scoring_criteria = ['Greeting', 'Professionalism', 'Confidence',
 class CallDataset(Dataset):
     """Call transcript dataset."""
 
-    def __init__(self, df):
+    def __init__(self, df, scoring_criteria):
         """
         Args:
             file_name: The json file to make the dataset from
         """
         self.df = df
+        self.scoring_criteria = scoring_criteria
         word_tokenizer = get_tokenizer('basic_english')
         clean_files = []
         for f in df.file_name:
@@ -61,7 +62,7 @@ class CallDataset(Dataset):
             idx = idx.tolist()
         text = self.df.iloc[idx]['text']
         id = self.df.index[idx]
-        scores = self.df.iloc[idx][scoring_criteria]
+        scores = self.df.iloc[idx][self.scoring_criteria]
         sample = {'text': text, 'id': id, 'scores': scores}
         return sample
 

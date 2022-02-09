@@ -13,9 +13,10 @@ from sklearn.metrics import classification_report, f1_score, mean_squared_error
 from PrepareDf import prepare_baseline_df
 from matplotlib import pyplot as plt
 from sklearn import metrics
+import numpy as np
 
 
-def get_metrics(dataloader, model, scoring_criterion, optim):
+def get_metrics(dataloader, model, scoring_criterion, loss):
     id_arr = []
     text_arr = []
     attn_score_arr = []
@@ -29,14 +30,14 @@ def get_metrics(dataloader, model, scoring_criterion, optim):
             output, scores = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
                                      batch['word_pos_indices'])
             target = [sample[scoring_criterion].tolist() for sample in batch['scores']]
-            if optim == 'mse':
+            if loss == 'mse':
                 raw_proba = [None for i in range(len(scoring_criterion))]
                 pred = output.numpy()
-            elif optim == 'bce':
+            elif loss == 'bce':
                 raw_proba = torch.sigmoid(output)
                 pred = ((raw_proba > thresh).long()).tolist()
                 raw_proba = raw_proba.tolist()
-            elif optim == 'cel':
+            elif loss == 'cel':
                 probs = torch.softmax(output, dim=1)
                 max_vals = torch.max(probs, dim=1)
                 raw_proba = probs[:, 1].tolist()
@@ -61,7 +62,7 @@ def get_metrics(dataloader, model, scoring_criterion, optim):
     print("target:", target_arr[:10])
     print("prediction:", pred_arr[:10])
 
-    if optim == 'mse':
+    if loss == 'mse':
         mse_error = mean_squared_error(target_arr, pred_arr)
         print("MSE Error = {}".format(mse_error))
         return mse_error, df
