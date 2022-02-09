@@ -54,34 +54,20 @@ def prepare_score_df(path_to_p, workgroup):
     #     criteria = q_text[i]
     #     score_comment_df[criteria] = (calls_df.UserComments[i::10]).values
     # score_comment_df = score_comment_df.loc[~score_comment_df.index.duplicated(keep='last')]
-
     print("Dataframe creation done")
-
     return score_df, q_text
 
 
 def prepare_trancript_score_df(score_df, q_text, transcripts_dir):
-    df = pd.DataFrame(columns=['text', 'file_name'])
+    df = pd.DataFrame()
     for file in os.listdir(transcripts_dir):
         if file.endswith('.txt'):
             file_loc = transcripts_dir + file
-            f = open(file_loc, 'r')
-            tscpt = f.read()
-            f.close()
-            if len(tscpt) == 0:
-                print("empty file")
-                continue
-            if '-' in file:
-                arr = file.split("-")
-                id = arr[1].split("_")[0]
-            else:
-                arr = file.split("_")
-                id = arr[1].split('.')[0]
+            id = re.split("_|-|\.", file)[1]
             if id in score_df.index:
                     df.loc[id, score_df.columns] = score_df.loc[id]
-                    df.loc[id, ['text', 'file_name']] = [tscpt, file_loc]
+                    df.loc[id, 'file_name'] = file_loc
     df.loc[:, q_text] = df.loc[:, q_text].astype(int)
-    df = df[df['text'].notna()]
     print("Number of Calls = {}".format(len(df)))
     return df
 

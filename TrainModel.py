@@ -167,7 +167,7 @@ class TrainModel:
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
             print("Average loss at epoch {}: {}".format(n, avg_epoch_loss))
             loss_arr.append(avg_epoch_loss)
-            if n % 5 == 4:
+            if n % 5 == 4 or n == epochs-1:
                 print("Training metric at end of epoch {}:".format(n))
                 train_metrics, _ = get_metrics(self.dataloader_train, model, scoring_criterion, self.args.optim)
                 print("Dev metric at end of epoch {}:".format(n))
