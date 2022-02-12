@@ -39,9 +39,10 @@ def get_metrics(dataloader, model, scoring_criterion, loss):
                 pred = ((raw_proba > thresh).long()).tolist()
                 raw_proba = raw_proba.tolist()
             elif loss == 'cel':
-                probs = torch.softmax(output, dim=1)
-                max_vals = torch.max(probs, dim=1)
-                raw_proba = probs[:, 1].tolist()
+                output = output.reshape(-1,len(scoring_criterion), 2)
+                probs = torch.softmax(output, dim=-1)
+                max_vals = torch.max(probs, dim=-1)
+                raw_proba = probs[:, :, 1].tolist()
                 pred = max_vals[1].tolist()
             else:
                 raise ValueError("Cannot do inference")
