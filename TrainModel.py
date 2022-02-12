@@ -98,7 +98,13 @@ class TrainModel:
         class_weights = self.get_class_weights()
         positive_weights = class_weights[:, 1]
         model = self.get_model()
-        loss_fn = nn.BCEWithLogitsLoss(pos_weight=positive_weights)
+        if self.args.loss == 'bce':
+            loss_fn = nn.BCEWithLogitsLoss(pos_weight=positive_weights)
+        elif self.args.loss == 'cel':
+            loss_fn = nn.CrossEntropyLoss()
+        else:
+            raise ValueError("Cannot use {} in multilabel setting".format(self.args.loss))
+
         model_optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
         scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
         epochs = self.args.epochs
@@ -154,7 +160,12 @@ class TrainModel:
                 outputs, scores, _ = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
                                         batch['word_pos_indices'])
                 targets = self.get_score_target(batch)
-                loss += loss_fn(outputs[0], targets)
+                if self.args.loss == 'cel':
+                    for i in range(len(self.scoring_criteria)):
+                        loss += loss_fn(outputs[0][:, i:i+2], targets[:, i])
+                        pass
+                else:
+                    loss += loss_fn(outputs[0], targets)
                 model_optimizer.zero_grad()
                 epoch_loss += loss.detach().item()
                 loss.backward()
