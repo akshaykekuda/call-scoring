@@ -93,6 +93,30 @@ class TrainModel:
         model = self.train_model(self.args.epochs, model, loss_fn, model_optimizer, scheduler)
         return model
 
+    def train_cel_model(self):
+        print("train using cross entropy loss without feedback")
+        class_weights = self.get_class_weights()
+        model = self.get_model()
+        loss_fn_arr = []
+        for i in range(len(self.scoring_criteria)):
+            loss_fn_arr.append(nn.CrossEntropyLoss(weight=class_weights[i], reduction='sum'))
+        model_optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
+        scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
+        model = self.train_model(self.args.epochs, model, loss_fn_arr, model_optimizer, scheduler)
+        return model
+
+    def train_bce_model(self):
+        print("train using BCE loss without feedback")
+        class_weights = self.get_class_weights()
+        positive_weights = class_weights[:, 1]
+        model = self.get_model()
+        loss_fn = nn.BCEWithLogitsLoss(pos_weight=positive_weights)
+        model_optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
+        scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
+        epochs = self.args.epochs
+        model = self.train_model(epochs, model, loss_fn, model_optimizer, scheduler)
+        return model
+
     def train_multi_label_model(self):
         print("train using BCE loss without feedback")
         class_weights = self.get_class_weights()
@@ -133,7 +157,7 @@ class TrainModel:
         model = self.train_mtl(self.args.epochs, model, loss_fn, model_optimizer, scheduler)
         return model
 
-    def train_linear_regressor(self, scoring_criteria):
+    def train_linear_regressor(self):
         print("train linear regressor")
         model = self.get_model()
         loss_fn = nn.MSELoss()
@@ -142,6 +166,19 @@ class TrainModel:
         epochs = self.args.epochs
         model = self.train_model(epochs, model, loss_fn, model_optimizer, scheduler)
         return model
+
+    def get_score_target(self, batch):
+        if self.args.loss == 'mse':
+            # put device in gpu may have to be modified
+            target = torch.tensor([sample[self.scoring_criteria] for sample in batch['scores']],
+                                  dtype=torch.float, device=self.args.device).view(-1, 1)
+        elif self.args.loss == 'bce':
+            target = torch.tensor([sample[self.scoring_criteria] for sample in batch['scores']],
+                                  dtype=torch.float, device=self.args.device)
+        elif self.args.loss == 'cel':
+            target = torch.tensor([sample[self.scoring_criteria] for sample in batch['scores']],
+                                  dtype=torch.long, device=self.args.device)
+        return target
 
     def train_model(self, epochs, model, loss_fn, model_optimizer, scheduler):
         print("inside train model without feedback")
@@ -162,8 +199,8 @@ class TrainModel:
                 targets = self.get_score_target(batch)
                 if self.args.loss == 'cel':
                     for i in range(len(self.scoring_criteria)):
-                        loss += loss_fn(outputs[0][:, i:i+2], targets[:, i])
-                        pass
+                        loss += loss_fn[i](outputs[0][:, i:i+2], targets[:, i])
+                    loss /= 2*len(self.scoring_criteria)
                 else:
                     loss += loss_fn(outputs[0], targets)
                 model_optimizer.zero_grad()
@@ -189,21 +226,6 @@ class TrainModel:
         print("Training Evaluation Metrics: ", train_acc)
         print("Dev Evaluation Metrics: ", dev_acc)
         return model
-
-    def get_score_target(self, batch):
-        if self.args.loss == 'mse':
-            # put device in gpu may have to be modified
-            target = torch.tensor([sample[self.scoring_criteria] for sample in batch['scores']],
-                                  dtype=torch.float, device=self.args.device).view(-1, 1)
-        elif self.args.loss == 'bce':
-            target = torch.tensor([sample[self.scoring_criteria] for sample in batch['scores']],
-                                  dtype=torch.float, device=self.args.device)
-        elif self.args.loss == 'cel':
-            target = torch.tensor([sample[self.scoring_criteria] for sample in batch['scores']],
-                                  dtype=torch.long, device=self.args.device).squeeze(dim=-1)
-        else:
-            raise "invalid loss fn"
-        return target
 
     def train_mtl(self, epochs, mtl_model, loss_fn, model_optimizer, scheduler):
         print("inside train mtl model")

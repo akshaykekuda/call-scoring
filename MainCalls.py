@@ -156,7 +156,7 @@ def predict_overall_score(trainer, dataloader_transcripts_test):
     print('Test MSE for Call Transcripts dataset  is:')
     return metrics
 """
-
+"""
 def predict_scores(trainer, dataloader_transcripts_test):
     if len(scoring_criteria) == 1:
         if scoring_criteria[0] == 'CombinedPercentileScore':
@@ -169,6 +169,24 @@ def predict_scores(trainer, dataloader_transcripts_test):
             raise ValueError("cannot run training")
     else:
         model = trainer.train_multi_label_model()
+    if args.save_model:
+        torch.save(model, args.save_path+"call_score.model")
+    print('Test Metrics for Call Transcripts dataset  is:')
+    metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, loss=args.loss)
+    plot_roc(scoring_criteria, pred_df, args.save_path+'auc.png')
+    pred_df.to_pickle(args.save_path+'call_score_test.p')
+    return metrics
+"""
+
+def predict_scores(trainer, dataloader_transcripts_test):
+    if args.loss == 'cel':
+        model = trainer.train_cel_model()
+    elif args.loss == 'bce':
+        model = trainer.train_bce_model()
+    elif args.loss == 'mse':
+        model = trainer.train_linear_regressor()
+    else:
+        raise ValueError("Invalid loss function {}".format(args.loss))
     if args.save_model:
         torch.save(model, args.save_path+"call_score.model")
     print('Test Metrics for Call Transcripts dataset  is:')
