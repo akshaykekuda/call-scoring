@@ -199,7 +199,7 @@ class TrainModel:
                 targets = self.get_score_target(batch)
                 if self.args.loss == 'cel':
                     for i in range(len(self.scoring_criteria)):
-                        loss += loss_fn[i](outputs[0][:, i:i+2], targets[:, i])
+                        loss += loss_fn[i](outputs[0][:, 2*i:2*(i+1)], targets[:, i])
                     loss /= 2*len(self.scoring_criteria)
                 else:
                     loss += loss_fn(outputs[0], targets)
