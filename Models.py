@@ -252,20 +252,22 @@ class SentenceSelfAttention(nn.Module):
         self.position_encoding = nn.Embedding(max_trans_len, model_size, padding_idx=0)
         self.num_layers = num_layers
         self.model_size = model_size
+        self.cls_vec = torch.rand(size=(1, model_size), requires_grad=True)
 
     def forward(self, inputs, positional_indices):
-        cls_token = inputs[:, 0, :]
         positional_encoding = self.position_encoding(positional_indices)
-        att_in = inputs[:, 1:, ] + positional_encoding[:, 1:, ]
-        padding_mask = positional_indices[:, 1:] == 0
+        att_in = inputs + positional_encoding
+        padding_mask = positional_indices == 0
         window_attn_in = att_in.split(20, dim=1)
         window_padding_mask = padding_mask.split(20, dim=1)
-        local_attn = torch.empty(size=(len(window_attn_in), inputs.size()[0], self.model_size))
+        bs = inputs.size()[0]
+        local_attn = torch.empty(size=(len(window_attn_in), bs, self.model_size))
         for i in range(len(window_attn_in)):
-            query = key = value = window_attn_in[0]
-            attn_out, attn_output_weights = self.multihead_attn(query, key, value, key_padding_mask=window_padding_mask[0])
-            local_attn[i] = (torch.mean(attn_out, dim=1, keepdim=False))
-        global_attn_in = torch.cat((cls_token.unsqueeze(dim=0), local_attn)).permute(1, 0, 2)
+            query = key = value = window_attn_in[i]
+            attn_out, attn_output_weights = self.multihead_attn(query, key, value, key_padding_mask=window_padding_mask[i])
+            local_attn[i] = (torch.mean(attn_out.nan_to_num(), dim=1, keepdim=False))
+
+        global_attn_in = torch.cat((self.cls_vec.repeat(bs, 1).unsqueeze(dim=0), local_attn)).permute(1, 0, 2)
         attn_output, attn_output_weights = self.multihead_attn(global_attn_in, global_attn_in, global_attn_in)
         # mask_for_pads = (~padding_mask).unsqueeze(-1).expand(-1, -1, attn_output.size(-1))
         # attn_output *= mask_for_pads

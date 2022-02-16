@@ -20,10 +20,9 @@ class Collate:
         self.count = 0
 
     def pad_trans(self, trans, max_len):
-        trans.insert(0, '<pad>')
         num_sents = len(trans)
         trans_pos_indices = [i + 1 for i in range(num_sents)]
-        for i in range(max_len - num_sents +1):
+        for i in range(max_len - num_sents):
             trans.append('<pad>')
             trans_pos_indices.append(0)
         return trans, trans_pos_indices
@@ -32,7 +31,7 @@ class Collate:
         tokens = word_tokenizer(sentence)
         tokens.insert(0, "<cls>")
         indices = [self.vocab[token] for token in tokens]
-        diff = max_sent_len - len(tokens) + 1
+        diff = max_sent_len - len(tokens)+1
         positional_indices = [i + 1 if t !='<pad>' else 0 for i, t in enumerate(tokens)]
         for i in range(diff):
             indices.append(self.vocab['<pad>'])  # padding idx=1
