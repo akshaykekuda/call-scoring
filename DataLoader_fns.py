@@ -20,10 +20,9 @@ class Collate:
         self.count = 0
 
     def pad_trans(self, trans, max_len):
-        trans.insert(0, '<pad>')
         num_sents = len(trans)
-        trans_pos_indices = [i + 1 for i in range(num_sents)]
-        for i in range(max_len - num_sents +1):
+        trans_pos_indices = [i + 1 for i in range(num_sents+1)]
+        for i in range(max_len - num_sents):
             trans.append('<pad>')
             trans_pos_indices.append(0)
         return trans, trans_pos_indices

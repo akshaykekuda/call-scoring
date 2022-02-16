@@ -251,8 +251,11 @@ class SentenceSelfAttention(nn.Module):
         # self.multihead_attn = CustomMultiHeadAttention(embed_dim, num_heads, dropout=dropout_rate, batch_first=True)
         self.position_encoding = nn.Embedding(max_trans_len, model_size, padding_idx=0)
         self.num_layers = num_layers
+        self.cls_token = torch.rand(size=(1, model_size), requires_grad=True)
 
     def forward(self, inputs, positional_indices):
+        bs = inputs.size()[0]
+        inputs = torch.cat((self.cls_token.repeat(bs, 1).unsqueeze(1), inputs), dim=1)
         positional_encoding = self.position_encoding(positional_indices)
         att_in = inputs + positional_encoding
         padding_mask = positional_indices == 0
