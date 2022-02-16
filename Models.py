@@ -259,13 +259,13 @@ class SentenceSelfAttention(nn.Module):
         padding_mask = positional_indices == 0
         window_attn_in = att_in.split(20, dim=1)
         window_padding_mask = padding_mask.split(20, dim=1)
-        level_0_out = torch.empty(size=(len(window_attn_in), inputs.size()[0], self.model_size))
+        local_attn = torch.empty(size=(len(window_attn_in), inputs.size()[0], self.model_size))
         for i in range(len(window_attn_in)):
             query = key = value = window_attn_in[0]
             attn_out, attn_output_weights = self.multihead_attn(query, key, value, key_padding_mask=window_padding_mask[0])
-            level_0_out[i] = (torch.mean(attn_out, dim=1, keepdim=False))
-
-        attn_output, attn_output_weights = self.multihead_attn(level_0_out.permute(1,0,2), level_0_out, level_0_out)
+            local_attn[i] = (torch.mean(attn_out, dim=1, keepdim=False))
+        query = key = value = local_attn.permute(1,0,2)
+        attn_output, attn_output_weights = self.multihead_attn(query, key, value)
         # mask_for_pads = (~padding_mask).unsqueeze(-1).expand(-1, -1, attn_output.size(-1))
         # attn_output *= mask_for_pads
         # attn_output_inter = torch.mean(attn_output[:, 1:-1, :], dim=1, keepdim=False)
