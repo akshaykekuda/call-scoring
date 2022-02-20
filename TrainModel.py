@@ -99,8 +99,8 @@ class TrainModel:
         model = self.get_model()
         loss_fn_arr = []
         for i in range(len(self.scoring_criteria)):
-            loss_fn_arr.append(nn.CrossEntropyLoss(weight=class_weights[i], reduction='sum'))
-        model_optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
+            loss_fn_arr.append(nn.CrossEntropyLoss(weight=class_weights[i], reduction='mean'))
+        model_optimizer = optim.AdamW(model.parameters(), lr=self.args.lr, weight_decay=1e-5)
         scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
         model = self.train_model(self.args.epochs, model, loss_fn_arr, model_optimizer, scheduler)
         return model
@@ -206,9 +206,9 @@ class TrainModel:
                 model_optimizer.zero_grad()
                 epoch_loss += loss.detach().item()
                 loss.backward()
-                nn.utils.clip_grad_norm_(model.parameters(), max_norm=5)
+                # nn.utils.clip_grad_norm_(model.parameters(), max_norm=5)
                 model_optimizer.step()
-            scheduler.step()
+            # scheduler.step()
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
             print("Average loss at epoch {}: {}".format(n, avg_epoch_loss))
             loss_arr.append(avg_epoch_loss)
