@@ -11,7 +11,7 @@ from __future__ import unicode_literals, print_function, division
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 from Models import *
-from Inference_fns import get_metrics
+from Inference_fns import val_get_metrics
 from sklearn.utils import class_weight
 from torch.optim.lr_scheduler import MultiStepLR
 import torch.optim as optim
@@ -190,6 +190,8 @@ class TrainModel:
         print(model)
         print(loss_fn)
         print(model_optimizer)
+        train_loss = []
+        val_loss = []
         for n in range(epochs):
             epoch_loss = 0
             for batch in tqdm(self.dataloader_train):
@@ -212,17 +214,24 @@ class TrainModel:
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
             print("Average loss at epoch {}: {}".format(n, avg_epoch_loss))
             loss_arr.append(avg_epoch_loss)
-            if n % 5 == 4:
+            if n % 3 == 2 or n == epochs-1:
                 print("Training metric at end of epoch {}:".format(n))
-                train_metrics, _ = get_metrics(self.dataloader_train, model, self.scoring_criteria, self.args.loss)
+                train_metrics, train_error = val_get_metrics(self.dataloader_train, model, self.scoring_criteria, self.args.loss, loss_fn)
                 print("Dev metric at end of epoch {}:".format(n))
-                dev_metrics, _ = get_metrics(self.dataloader_dev, model, self.scoring_criteria, self.args.loss)
+                dev_metrics, val_error = val_get_metrics(self.dataloader_dev, model, self.scoring_criteria, self.args.loss, loss_fn)
                 train_acc.append(train_metrics)
                 dev_acc.append(dev_metrics)
-        print("Epoch Losses:", loss_arr)
-        plt.plot(loss_arr)
+                train_loss.append(train_error)
+                val_loss.append(val_error)
+                model.train()
+        fig, axs = plt.subplots(1, 2)
+        fig.suptitle('Losses')
+        axs[0].plot(loss_arr, label ='training loss')
+        axs[1].plot(val_loss, label = 'validation loss')
+        plt.legend()
         plt.show()
         plt.savefig(self.args.save_path + 'loss.png')
+        print("Epoch Losses:", loss_arr)
         print("Training Evaluation Metrics: ", train_acc)
         print("Dev Evaluation Metrics: ", dev_acc)
         return model
@@ -260,9 +269,9 @@ class TrainModel:
             loss_arr.append(avg_epoch_loss)
             if n % 5 == 4:
                 print("Training metric at end of epoch {}:".format(n))
-                train_metrics, _ = get_metrics(self.dataloader_train, mtl_model, self.scoring_criteria, self.args.loss)
+                train_metrics, _ = val_get_metrics(self.dataloader_train, mtl_model, self.scoring_criteria, self.args.loss)
                 print("Dev metric at end of epoch {}:".format(n))
-                dev_metrics, _ = get_metrics(self.dataloader_dev, mtl_model, self.scoring_criteria, self.args.loss)
+                dev_metrics, _ = val_get_metrics(self.dataloader_dev, mtl_model, self.scoring_criteria, self.args.loss)
                 train_acc.append(train_metrics)
                 dev_acc.append(dev_metrics)
         print("Epoch Losses:", loss_arr)
