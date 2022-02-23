@@ -255,7 +255,7 @@ def run_cross_validation(train_df, test_df):
         vocab_size = len(vocab)
         embedding_size = embedding_model.vector_size
         weights_matrix = np.zeros((vocab_size, embedding_size))
-        i = 2
+        i = 2 # ignore <UNK> and <pad> tokens
         for word in vocab.get_itos()[2:]:
             try:
                 weights_matrix[i] = embedding_model[word]  # model.wv[word] for trained word2vec
