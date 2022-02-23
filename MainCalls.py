@@ -57,7 +57,8 @@ def _parse_args():
     parser.add_argument('--word_embedding', type=str, default='glove', help='word embedding to use')
     parser.add_argument('--attention', type=str, default='hs2an', help='attention mechanism to use')
     parser.add_argument('--save_path', type=str, default='logs/test/', help='path to save checkpoints')
-    parser.add_argument('--num_heads', type=int, default=1, help='number of attention heads')
+    parser.add_argument('--word_nh', type=int, default=1, help='number of attention heads for word attn')
+    parser.add_argument('--sent_nh', type=int, default=1, help='number of attention heads for sent attn')
     parser.add_argument('--model_size', type=int, default=64, help='model size')
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
     parser.add_argument('--dropout', type=float, default=0.2, help='dropout rate')
@@ -191,8 +192,8 @@ def predict_scores(trainer, dataloader_transcripts_test):
         torch.save(model, args.save_path+"call_score.model")
     print('Test Metrics for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, loss=args.loss)
-    plot_roc(scoring_criteria, pred_df, args.save_path+'auc.png')
-    pred_df.to_pickle(args.save_path+'call_score_test.p')
+    plot_roc(scoring_criteria, pred_df, args.save_path + 'fold_'+ str(trainer.fold) +'_auc.png')
+    pred_df.to_pickle(args.save_path+'fold_'+ str(trainer.fold)+'_call_score_test.p')
     return metrics
 
 
@@ -216,8 +217,9 @@ def get_max_len(df):
 
 
 def run_cross_validation(train_df, test_df):
-    kf = KFold(n_splits=5, shuffle=True)
+    kf = KFold(n_splits=2, shuffle=True)
     kfold_results = []
+    fold = 0
     for train, dev in kf.split(train_df):
         # train, dev = train_test_split(df_sampled, test_size=0.20)
         t_df = train_df.iloc[train].copy()
@@ -263,7 +265,7 @@ def run_cross_validation(train_df, test_df):
         weights_matrix[0] = np.mean(weights_matrix, axis=0)
         weights_matrix = torch.tensor(weights_matrix)
         trainer = TrainModel(dataloader_transcripts_train, dataloader_transcripts_dev, vocab_size, embedding_size,
-                             weights_matrix, args, max_trans_len, max_sent_len, scoring_criteria)
+                             weights_matrix, args, max_trans_len, max_sent_len, scoring_criteria, fold)
         if args.use_feedback:
             metrics = predict_scores_mtl(trainer, dataloader_transcripts_test)
         else:
@@ -284,8 +286,8 @@ def run_cross_validation(train_df, test_df):
         else:
             raise ValueError("Invalid Model Argument")
         """
+        fold+=1
         kfold_results.append(metrics)
-        break
     return kfold_results
 
 

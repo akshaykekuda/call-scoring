@@ -92,9 +92,10 @@ def val_get_metrics(dataloader, model, scoring_criterion, loss, loss_fn):
     if loss == 'mse':
         mse_error = mean_squared_error(target_arr, pred_arr)
         print("MSE Error = {}".format(mse_error))
-        return mse_error, l
+        return mse_error, val_loss/len(dataloader)
     else:
         # f1 = f1_score(target_arr, pred_arr)
+        auc_arr = []
         for i in range(len(scoring_criterion)):
             crit = scoring_criterion[i]
             print("Category:", crit)
@@ -104,11 +105,12 @@ def val_get_metrics(dataloader, model, scoring_criterion, loss, loss_fn):
             if not y_pred_proba.isna().sum():
                 fpr, tpr, _ = metrics.roc_curve(y_true, y_pred_proba)
                 auc = metrics.roc_auc_score(y_true, y_pred_proba).round(2)
-                print("AUC for {} = {}".format(crit, auc))
+                auc_arr.append(auc)
+                # print("AUC for {} = {}".format(crit, auc))
             else:
                 print("raw scores may be NAN for {}".format(crit))
         clr = classification_report(target_arr, pred_arr)
-        return clr, l
+        return clr, val_loss/len(dataloader), auc_arr
 
 
 def get_metrics(dataloader, model, scoring_criterion, loss):

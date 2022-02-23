@@ -230,12 +230,12 @@ class HSAN(nn.Module):
 
 
 class HS2AN(nn.Module):
-    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len,
-                 max_sent_len, num_heads, dropout_rate, num_layers):
+    def __init__(self, vocab_size, embedding_size, model_size, weights_matrix, max_trans_len,
+                 max_sent_len, word_nh, sent_nh, dropout_rate, num_layers):
         super(HS2AN, self).__init__()
-        self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, 2 * hidden_size, weights_matrix,
-                                                     max_sent_len, num_heads, dropout_rate)
-        self.sentence_self_attention = SentenceSelfAttention(2 * hidden_size, num_heads, max_trans_len, dropout_rate, num_layers)
+        self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
+                                                     max_sent_len, word_nh, dropout_rate)
+        self.sentence_self_attention = SentenceSelfAttention(model_size, sent_nh, max_trans_len, dropout_rate, num_layers)
 
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
         att1 = self.word_self_attention.forward(inputs, word_pos_indices)

@@ -19,7 +19,7 @@ import torch.optim as optim
 
 class TrainModel:
     def __init__(self, dataloader_train, dataloader_dev, vocab_size, vec_size, weights_matrix, args, max_trans_len,
-                 max_sent_len, scoring_criteria):
+                 max_sent_len, scoring_criteria, fold):
         self.dataloader_train = dataloader_train
         self.dataloader_dev = dataloader_dev
         self.vocab_size = vocab_size
@@ -29,6 +29,7 @@ class TrainModel:
         self.max_trans_len = max_trans_len
         self.max_sent_len = max_sent_len
         self.scoring_criteria = scoring_criteria
+        self.fold = fold
 
     def train(self):
         raise "To be Implemented"
@@ -47,20 +48,20 @@ class TrainModel:
                            self.max_trans_len, self.max_sent_len, self.args.num_heads, self.args.dropout)
         elif self.args.attention == 'hs2an':
             encoder = HS2AN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                            self.max_trans_len, self.max_sent_len, self.args.num_heads, self.args.dropout, self.args.num_layers)
+                            self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh, self.args.dropout, self.args.num_layers)
         else:
             raise ValueError("Invalid Attention Model argument")
 
         if self.args.loss == 'mse':
-            fcn = FCN_ReLu(2 * self.args.model_size, len(self.scoring_criteria), self.args.dropout)
+            fcn = FCN_ReLu(self.args.model_size, len(self.scoring_criteria), self.args.dropout)
         elif self.args.loss == 'cel':
-            fcn = FCN_Tanh(2 * self.args.model_size, len(self.scoring_criteria)*2, self.args.dropout)
+            fcn = FCN_Tanh(self.args.model_size, len(self.scoring_criteria)*2, self.args.dropout)
         elif self.args.loss == 'bce':
-            fcn = FCN_Tanh(2 * self.args.model_size, len(self.scoring_criteria), self.args.dropout)
+            fcn = FCN_Tanh(self.args.model_size, len(self.scoring_criteria), self.args.dropout)
         else:
             raise ValueError("Invalid Optimizer argument")
 
-        mtl_head = FCN_MTL(2 * self.args.model_size, self.args.k, self.args.dropout)
+        mtl_head = FCN_MTL(self.args.model_size, self.args.k, self.args.dropout)
 
         if self.args.use_feedback:
             model = EncoderMTL(encoder, fcn, mtl_head, len(self.scoring_criteria))
@@ -100,7 +101,7 @@ class TrainModel:
         loss_fn_arr = []
         for i in range(len(self.scoring_criteria)):
             loss_fn_arr.append(nn.CrossEntropyLoss(weight=class_weights[i], reduction='mean'))
-        model_optimizer = optim.AdamW(model.parameters(), lr=self.args.lr, weight_decay=1e-5)
+        model_optimizer = optim.AdamW(model.parameters(), lr=self.args.lr, weight_decay=1e-3)
         scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
         model = self.train_model(self.args.epochs, model, loss_fn_arr, model_optimizer, scheduler)
         return model
@@ -212,25 +213,34 @@ class TrainModel:
                 model_optimizer.step()
             # scheduler.step()
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
-            print("Average loss at epoch {}: {}".format(n, avg_epoch_loss))
             loss_arr.append(avg_epoch_loss)
-            if n % 3 == 2 or n == epochs-1:
-                print("Training metric at end of epoch {}:".format(n))
-                train_metrics, train_error = val_get_metrics(self.dataloader_train, model, self.scoring_criteria, self.args.loss, loss_fn)
-                print("Dev metric at end of epoch {}:".format(n))
-                dev_metrics, val_error = val_get_metrics(self.dataloader_dev, model, self.scoring_criteria, self.args.loss, loss_fn)
-                train_acc.append(train_metrics)
-                dev_acc.append(dev_metrics)
-                train_loss.append(train_error)
-                val_loss.append(val_error)
-                model.train()
+            train_metrics, train_error, train_auc = val_get_metrics(self.dataloader_train, model, self.scoring_criteria, self.args.loss, loss_fn)
+            dev_metrics, val_error, val_auc = val_get_metrics(self.dataloader_dev, model, self.scoring_criteria, self.args.loss, loss_fn)
+           
+            print("Average loss at epoch {}: {}".format(n, avg_epoch_loss))
+            print("Training metric at end of epoch {}:".format(n))
+            print(train_metrics)
+            for i, crit in enumerate(self.scoring_criteria):
+                print("Train AUC for {} = {}".format(crit, train_auc[i]))
+            
+            print("Dev metric at end of epoch {}:".format(n))
+            print(dev_metrics)
+            for i, crit in enumerate(self.scoring_criteria):
+                print("Dev AUC for {} = {}".format(crit, val_auc[i]))            
+            
+            train_acc.append(train_metrics)
+            dev_acc.append(dev_metrics)
+            train_loss.append(train_error)
+            val_loss.append(val_error)
+            model.train()
         fig, axs = plt.subplots(1, 2)
         fig.suptitle('Losses')
-        axs[0].plot(loss_arr, label ='training loss')
-        axs[1].plot(val_loss, label = 'validation loss')
-        plt.legend()
+        axs[0].plot(loss_arr)
+        axs[1].plot(val_loss)
+        axs[0].title.set_text('training loss')
+        axs[1].title.set_text('val loss')
         plt.show()
-        plt.savefig(self.args.save_path + 'loss.png')
+        plt.savefig(self.args.save_path + 'fold_'+ str(self.fold) + '_loss.png')
         print("Epoch Losses:", loss_arr)
         print("Training Evaluation Metrics: ", train_acc)
         print("Dev Evaluation Metrics: ", dev_acc)
