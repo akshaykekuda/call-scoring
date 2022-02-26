@@ -21,15 +21,16 @@ from gensim.models import KeyedVectors
 from TrainModel import TrainModel
 from Inference_fns import *
 from PrepareDf import *
-from sklearn.model_selection import train_test_split, KFold
+from sklearn.model_selection import train_test_split, KFold, ShuffleSplit
 from nltk.tokenize import word_tokenize
 
 import numpy as np
 import torch
 import pandas as pd
 import time
-np.random.seed(1000)
-torch.manual_seed(1000)
+seed = 1000
+np.random.seed(seed)
+torch.manual_seed(seed)
 
 path_to_handscored_p = 'ScoringDetail_viw_all_subscore.p' 
 word_embedding_pt = dict(glove='../word_embeddings/glove_word_vectors',
@@ -70,6 +71,7 @@ def _parse_args():
     parser.add_argument("--save_model", default=False, action="store_true")
     parser.add_argument("--use_feedback", default=False, action="store_true")
     parser.add_argument("--num_layers", default=1, type=int, help="num of layers of self attention")
+    parser.add_argument("--reg", default=1e-5, type=float, help="l2 regularization")
 
     args = parser.parse_args()
     return args
@@ -217,7 +219,8 @@ def get_max_len(df):
 
 
 def run_cross_validation(train_df, test_df):
-    kf = KFold(n_splits=2, shuffle=True)
+    # kf = KFold(n_splits=2, shuffle=True)
+    kf = ShuffleSplit(n_splits=2, test_size=0.15, random_state=seed)
     kfold_results = []
     fold = 0
     for train, dev in kf.split(train_df):
@@ -225,10 +228,10 @@ def run_cross_validation(train_df, test_df):
         t_df = train_df.iloc[train].copy()
         # t_df = t_df.loc[t_df.text.apply(lambda x: len(x.split('\n'))).sort_values().index]
         dev_df = train_df.iloc[dev].copy()
-        subscore_dist = t_df.loc[:, ['Greeting', 'Professionalism', 'Confidence',
-                    'Cross Selling', 'Retention', 'Creates Incentive', 'Product Knowledge',
-                    'Documentation', 'Education', 'Processes', 'Category']].apply(lambda x: x.value_counts())
+        subscore_dist = t_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
         print("Subscore distribution count in Training set\n", subscore_dist)
+        subscore_dist = dev_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
+        print("Subscore distribution count in Dev set\n", subscore_dist)        
         if args.use_feedback:
             dataset_transcripts_train = CallDatasetWithFbk(t_df, scoring_criteria)
         else:
@@ -298,7 +301,7 @@ if __name__ == "__main__":
     score_df, q_text = prepare_score_df(
         path_to_handscored_p, workgroup=args.workgroup)
     transcript_score_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
-    train_df, test_df = train_test_split(transcript_score_df, test_size=0.15)
+    train_df, test_df = train_test_split(transcript_score_df, test_size=0.15, random_state=seed)
     if args.model == 'AllSubScores':
         scoring_criteria = sub_score_categories
     elif args.model == 'BestSubScores':
@@ -312,6 +315,8 @@ if __name__ == "__main__":
     if args.train_samples > 0:
         train_df = balance_df(train_df, args.train_samples)
 
+    subscore_dist = test_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
+    print("Subscore distribution count in Test set\n", subscore_dist)
     kfold_results = run_cross_validation(train_df, test_df)
 
     # avg_tuple = [sum(y) / len(y) for y in zip(*kfold_results)]

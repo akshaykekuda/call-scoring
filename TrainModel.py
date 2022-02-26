@@ -101,7 +101,7 @@ class TrainModel:
         loss_fn_arr = []
         for i in range(len(self.scoring_criteria)):
             loss_fn_arr.append(nn.CrossEntropyLoss(weight=class_weights[i], reduction='mean'))
-        model_optimizer = optim.AdamW(model.parameters(), lr=self.args.lr, weight_decay=1e-3)
+        model_optimizer = optim.AdamW(model.parameters(), lr=self.args.lr, weight_decay=self.args.reg)
         scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
         model = self.train_model(self.args.epochs, model, loss_fn_arr, model_optimizer, scheduler)
         return model
@@ -214,10 +214,14 @@ class TrainModel:
             # scheduler.step()
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
             loss_arr.append(avg_epoch_loss)
+            print("start of val on train set")
             train_metrics, train_error, train_auc = val_get_metrics(self.dataloader_train, model, self.scoring_criteria, self.args.loss, loss_fn)
+            print("start of val on dev set")
             dev_metrics, val_error, val_auc = val_get_metrics(self.dataloader_dev, model, self.scoring_criteria, self.args.loss, loss_fn)
            
-            print("Average loss at epoch {}: {}".format(n, avg_epoch_loss))
+            print("Average training loss at epoch {}: {}".format(n, avg_epoch_loss))
+            print("Average val loss at epoch {}: {}".format(n, val_error))
+            
             print("Training metric at end of epoch {}:".format(n))
             print(train_metrics)
             for i, crit in enumerate(self.scoring_criteria):
@@ -233,12 +237,14 @@ class TrainModel:
             train_loss.append(train_error)
             val_loss.append(val_error)
             model.train()
-        fig, axs = plt.subplots(1, 2)
+        fig, axs = plt.subplots(1, 2, figsize=(16,6))
         fig.suptitle('Losses')
         axs[0].plot(loss_arr)
-        axs[1].plot(val_loss)
+        axs[1].plot(val_loss, label = 'dev set')
+        axs[1].plot(train_loss, label='train set')
         axs[0].title.set_text('training loss')
         axs[1].title.set_text('val loss')
+        axs[1].legend()
         plt.show()
         plt.savefig(self.args.save_path + 'fold_'+ str(self.fold) + '_loss.png')
         print("Epoch Losses:", loss_arr)
