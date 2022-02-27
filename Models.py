@@ -239,7 +239,7 @@ class HS2AN(nn.Module):
         self.layerNorm = nn.LayerNorm(model_size)
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
         att1 = self.word_self_attention.forward(inputs, word_pos_indices)
-        att1 = self.layerNorm(att1)
+        # att1 = self.layerNorm(att1)
         att2, sentence_att_scores, value = self.sentence_self_attention.forward(att1, trans_pos_indices)
         # print(sentence_att_scores.shape)
         return att2, sentence_att_scores, value
