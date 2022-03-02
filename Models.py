@@ -291,24 +291,24 @@ class WordSelfAttention(nn.Module):
         attn_in = embed_output + position_encoding
         padding_mask = (positional_indices == 0)
         bs = len(attn_in)
-        sent_embedding = torch.empty(size=(bs, embed_output.size()[1], embed_output.size()[3]))
-        for i in range(bs):
-            query = key = value = attn_in[i]
-            attn_output, _ = self.multihead_attn(query, key, value, key_padding_mask=padding_mask[i])
-            sent_embedding[i] = attn_output[:, 0, :]
+        # sent_embedding = torch.empty(size=(bs, embed_output.size()[1], embed_output.size()[3]))
+        # for i in range(bs):
+        #     query = key = value = attn_in[i]
+        #     attn_output, _ = self.multihead_attn(query, key, value, key_padding_mask=padding_mask[i])
+        #     sent_embedding[i] = attn_output[:, 0, :]
 
-        # attn_in = attn_in.flatten(0, 1)
-        # padding_mask = padding_mask.flatten(0, 1)
-        # query = key = value = attn_in
-        # attn_output, _ = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
-        # sent_embedding = attn_output[:, 0, :]
+        attn_in = attn_in.flatten(0, 1)
+        padding_mask = padding_mask.flatten(0, 1)
+        query = key = value = attn_in
+        attn_output, _ = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
+        sent_embedding = attn_output[:, 0, :]
 
         # force pad attention outputs
         # padding_mask = (inputs == 1).view(-1, *inputs.size()[2:])
         # mask_for_pads = (~padding_mask).unsqueeze(-1).expand(-1, -1, attn_output.size(-1))
         # attn_output *= mask_for_pads
         # sent_embedding = torch.mean(attn_output, dim=1, keepdim=False)
-        # sent_embedding = sent_embedding.reshape(*inputs.size()[0:2], -1)
+        sent_embedding = sent_embedding.reshape(*inputs.size()[0:2], -1)
         # sent_embedding = torch.na n_to_num(sent_embedding)
         sent_embedding = self.ffn(sent_embedding)
         return sent_embedding

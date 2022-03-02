@@ -102,7 +102,7 @@ class TrainModel:
         for i in range(len(self.scoring_criteria)):
             loss_fn_arr.append(nn.CrossEntropyLoss(weight=class_weights[i], reduction='mean'))
         model_optimizer = optim.AdamW(model.parameters(), lr=self.args.lr, weight_decay=self.args.reg)
-        scheduler = MultiStepLR(model_optimizer, milestones=[10, 20], gamma=0.1)
+        scheduler = MultiStepLR(model_optimizer, milestones=[15, 35], gamma=0.1)
         model = self.train_model(self.args.epochs, model, loss_fn_arr, model_optimizer, scheduler)
         return model
 
@@ -195,7 +195,7 @@ class TrainModel:
         val_loss = []
         for n in range(epochs):
             epoch_loss = 0
-            for batch in tqdm(self.dataloader_train):
+            for idx, batch in enumerate(tqdm(self.dataloader_train)):
                 loss = 0
                 outputs, scores, _ = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
                                         batch['word_pos_indices'])
@@ -203,15 +203,16 @@ class TrainModel:
                 if self.args.loss == 'cel':
                     for i in range(len(self.scoring_criteria)):
                         loss += loss_fn[i](outputs[0][:, 2*i:2*(i+1)], targets[:, i])
-                    loss /= 2*len(self.scoring_criteria)
+                    loss /= 2*len(self.scoring_criteria)*self.args.acum_step
                 else:
                     loss += loss_fn(outputs[0], targets)
-                model_optimizer.zero_grad()
                 epoch_loss += loss.detach().item()
                 loss.backward()
                 # nn.utils.clip_grad_norm_(model.parameters(), max_norm=5)
-                model_optimizer.step()
-            # scheduler.step()
+                if (idx%self.args.acum_step == self.args.acum_step-1) or idx == len(self.dataloader_train)-1:
+                    model_optimizer.step()
+                    model_optimizer.zero_grad()
+            scheduler.step()
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
             loss_arr.append(avg_epoch_loss)
             print("start of val on train set")
