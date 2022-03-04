@@ -64,6 +64,7 @@ def _parse_args():
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
     parser.add_argument('--dropout', type=float, default=0.2, help='dropout rate')
     parser.add_argument('--trans_path', type=str, default='transcriptions/text_only/', help='link to transcripts')
+    parser.add_argument('--test_path', type=str, default='transcriptions/test_transcriptions/', help='link to test transcripts')
     parser.add_argument('--device', type=str, default='cpu', help='device to use')
     parser.add_argument('--loss', type=str, default='bce', help='optimizer to use')
     parser.add_argument('--k', type=int, default=20, help='number of top comments to use')
@@ -222,7 +223,7 @@ def get_max_len(df):
 
 def run_cross_validation(train_df, test_df):
     # kf = KFold(n_splits=2, shuffle=True)
-    kf = ShuffleSplit(n_splits=2, test_size=0.15, random_state=seed)
+    kf = ShuffleSplit(n_splits=1, test_size=0.15, random_state=seed)
     kfold_results = []
     fold = 0
     for train, dev in kf.split(train_df):
@@ -302,8 +303,8 @@ if __name__ == "__main__":
     print("Arguments:", args)
     score_df, q_text = prepare_score_df(
         path_to_handscored_p, workgroup=args.workgroup)
-    transcript_score_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
-    train_df, test_df = train_test_split(transcript_score_df, test_size=0.15, random_state=seed)
+    train_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
+    test_df = prepare_trancript_score_df(score_df, q_text, args.test_path)
     if args.model == 'AllSubScores':
         scoring_criteria = sub_score_categories
     elif args.model == 'BestSubScores':

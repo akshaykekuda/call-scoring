@@ -64,6 +64,15 @@ def prepare_trancript_score_df(score_df, q_text, transcripts_dir):
     print("Number of Calls = {}".format(len(df)))
     return df
 
+def prepare_inference_df(transcripts_dir):
+    df = pd.DataFrame()
+    for file in os.listdir(transcripts_dir):
+        if file.endswith('.txt'):
+            file_loc = transcripts_dir + file
+            id = re.split("_|-|\.", file)[1]
+            df.loc[id, 'file_name'] = file_loc
+    print("Number of Test Calls = {}".format(len(df)))
+    return df
 
 def balance_df(df, num_samples):
     h = df[df.Category == 1].sample(n=num_samples//2)

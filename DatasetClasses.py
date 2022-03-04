@@ -95,3 +95,11 @@ class CallDatasetWithFbk(CallDataset):
         for fbk_category in self.fbk_str:
             sample[fbk_category] = fbk_vector[fbk_category]
         return sample
+
+class InferenceCallDataSet(Dataset):
+    def __init__(self, df) -> None:
+        super().__init__()
+        self.df = df
+        self.df['text'] = self.df.file_name.apply(lambda x: preprocess_transcript(x))
+    def __len__(self):
+        return len(self.df)
