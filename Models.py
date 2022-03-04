@@ -22,10 +22,10 @@ class FCN_Tanh(nn.Module):
     def __init__(self, input_size, num_classes, dropout_rate):
         super(FCN_Tanh, self).__init__()
         self.fcn = nn.Sequential(
-            nn.Linear(input_size, 64),
-            nn.Tanh(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(64, num_classes),
+            nn.Linear(input_size, num_classes)
+            # nn.Tanh()
+            # nn.Dropout(dropout_rate),
+            # nn.Linear(64, num_classes),
         )
 
     def forward(self, x):
@@ -231,10 +231,10 @@ class HSAN(nn.Module):
 
 class HS2AN(nn.Module):
     def __init__(self, vocab_size, embedding_size, model_size, weights_matrix, max_trans_len,
-                 max_sent_len, word_nh, sent_nh, dropout_rate, num_layers):
+                 max_sent_len, word_nh, sent_nh, dropout_rate, num_layers, word_num_layers):
         super(HS2AN, self).__init__()
         self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
-                                                     max_sent_len, word_nh, dropout_rate)
+                                                     max_sent_len, word_nh, dropout_rate, word_num_layers)
         self.sentence_self_attention = SentenceSelfAttention(model_size, sent_nh, max_trans_len, dropout_rate, num_layers)
         self.layerNorm = nn.LayerNorm(model_size)
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
@@ -275,7 +275,7 @@ class SentenceSelfAttention(nn.Module):
 
 
 class WordSelfAttention(nn.Module):
-    def __init__(self, vocab_size, embedding_size, out_dim, weights_matrix, max_sent_len, num_heads, dropout_rate):
+    def __init__(self, vocab_size, embedding_size, out_dim, weights_matrix, max_sent_len, num_heads, dropout_rate, num_layers):
         super(WordSelfAttention, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
         self.embedding.load_state_dict({'weight': weights_matrix})
@@ -284,6 +284,7 @@ class WordSelfAttention(nn.Module):
 
         self.ffn = nn.Linear(embedding_size, out_dim)
         self.position_encoding = nn.Embedding(max_sent_len, embedding_size, padding_idx=0)
+        self.num_layers=num_layers
 
     def forward(self, inputs, positional_indices):
         embed_output = self.embedding(inputs)
@@ -299,8 +300,10 @@ class WordSelfAttention(nn.Module):
 
         attn_in = attn_in.flatten(0, 1)
         padding_mask = padding_mask.flatten(0, 1)
-        query = key = value = attn_in
-        attn_output, _ = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
+        for i in range(self.num_layers):
+            query = key = value = attn_in
+            attn_in, _ = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
+        attn_output = attn_in
         sent_embedding = attn_output[:, 0, :]
 
         # force pad attention outputs

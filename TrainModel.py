@@ -48,7 +48,8 @@ class TrainModel:
                            self.max_trans_len, self.max_sent_len, self.args.num_heads, self.args.dropout)
         elif self.args.attention == 'hs2an':
             encoder = HS2AN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                            self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh, self.args.dropout, self.args.num_layers)
+                            self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh, self.args.dropout, self.args.num_layers,
+                            self.args.word_nlayers)
         else:
             raise ValueError("Invalid Attention Model argument")
 
@@ -203,7 +204,7 @@ class TrainModel:
                 if self.args.loss == 'cel':
                     for i in range(len(self.scoring_criteria)):
                         loss += loss_fn[i](outputs[0][:, 2*i:2*(i+1)], targets[:, i])
-                    loss /= 2*len(self.scoring_criteria)*self.args.acum_step
+                    # loss /= 2*len(self.scoring_criteria)*self.args.acum_step
                 else:
                     loss += loss_fn(outputs[0], targets)
                 epoch_loss += loss.detach().item()

@@ -70,7 +70,8 @@ def _parse_args():
     parser.add_argument('--num_workers', type=int, default=0, help='number of workers for the dataset')
     parser.add_argument("--save_model", default=False, action="store_true")
     parser.add_argument("--use_feedback", default=False, action="store_true")
-    parser.add_argument("--num_layers", default=1, type=int, help="num of layers of self attention")
+    parser.add_argument("--num_layers", default=1, type=int, help="num of layers of sentence level self attention")
+    parser.add_argument("--word_nlayers", default=1, type=int, help="num of layers of word level self attention")
     parser.add_argument("--reg", default=1e-5, type=float, help="l2 regularization")
     parser.add_argument("--acum_step", default=1, type=int, help="grad accumulation steps")
 
