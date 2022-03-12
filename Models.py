@@ -159,15 +159,16 @@ class HAN(nn.Module):
 class SentenceAttention(nn.Module):
     def __init__(self, sentence_embedding_size, hidden_size):
         super(SentenceAttention, self).__init__()
-        self.lstm = nn.LSTM(sentence_embedding_size, hidden_size, batch_first=True, bidirectional=True)
+        self.lstm = nn.LSTM(sentence_embedding_size, hidden_size, batch_first=True, bidirectional=True, proj_size=hidden_size//2)
         self.attn = nn.Sequential(
-            nn.Linear(2 * hidden_size, hidden_size),
-            nn.Tanh(),
             nn.Linear(hidden_size, 1),
             nn.Tanh()
         )
+        self.cls_token = torch.rand(size=(1, sentence_embedding_size), requires_grad=True)
 
     def forward(self, inputs, positional_indices):
+        bs = inputs.size()[0]
+        inputs = torch.cat((self.cls_token.repeat(bs, 1).unsqueeze(1), inputs), dim=1)
         padding_mask = positional_indices == 0
         trans_lens = (~padding_mask).sum(dim=1).cpu()
         pck_seq = torch.nn.utils.rnn.pack_padded_sequence(inputs, trans_lens, batch_first=True, enforce_sorted=False)
@@ -178,7 +179,7 @@ class SentenceAttention(nn.Module):
         attn_weights_masked = attn_weights.masked_fill(padding_mask.unsqueeze(2), value=-np.inf)
         attn_scores = F.softmax(attn_weights_masked, 1)
         out = torch.bmm(output.transpose(1, 2), attn_scores).squeeze(2)
-        return out, attn_scores.squeeze(2)
+        return out, attn_scores.squeeze(2),
 
 
 class WordAttention(nn.Module):
@@ -233,17 +234,19 @@ class HSAN(nn.Module):
 class HSAN1(nn.Module):
     def __init__(self, vocab_size, embedding_size, model_size, weights_matrix,
                  max_sent_len, word_nh, dropout_rate, num_layers, word_num_layers):
-        super(HSAN, self).__init__()
+        super(HSAN1, self).__init__()
         self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
                                                      max_sent_len, word_nh, dropout_rate, word_num_layers)
         self.sentence_attention = SentenceAttention(embedding_size, model_size)
         self.layerNorm = nn.LayerNorm(model_size)
+
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
         att1 = self.word_self_attention.forward(inputs, word_pos_indices)
         # att1 = self.layerNorm(att1)
-        att2, sentence_att_scores = self.sentence_attention.forward(att1, trans_pos_indices)
+        att2, sentence_att_scores,  = self.sentence_attention.forward(att1, trans_pos_indices)
         # print(sentence_att_scores.shape)
-        return att2, sentence_att_scores
+        return att2, sentence_att_scores, None
+
 
 class HS2AN(nn.Module):
     def __init__(self, vocab_size, embedding_size, model_size, weights_matrix, max_trans_len,
