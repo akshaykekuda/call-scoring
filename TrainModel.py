@@ -213,7 +213,7 @@ class TrainModel:
                 if (idx%self.args.acum_step == self.args.acum_step-1) or idx == len(self.dataloader_train)-1:
                     model_optimizer.step()
                     model_optimizer.zero_grad()
-            scheduler.step()
+            # scheduler.step()
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
             loss_arr.append(avg_epoch_loss)
             print("start of val on train set")

@@ -22,8 +22,9 @@ class FCN_Tanh(nn.Module):
     def __init__(self, input_size, num_classes, dropout_rate):
         super(FCN_Tanh, self).__init__()
         self.fcn = nn.Sequential(
-            nn.Linear(input_size, num_classes)
-            # nn.Tanh()
+            nn.Linear(input_size, num_classes),
+            # nn.Linear(input_size, 64),
+            # nn.Tanh(),
             # nn.Dropout(dropout_rate),
             # nn.Linear(64, num_classes),
         )
@@ -221,7 +222,7 @@ class HSAN(nn.Module):
                  max_sent_len, num_heads, dropout_rate):
         super(HSAN, self).__init__()
         self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
-        self.sentence_self_attention = SentenceSelfAttention(2 * hidden_size, num_heads, max_trans_len, dropout_rate)
+        self.sentence_self_attention = SentenceSelfAttention(hidden_size, num_heads, max_trans_len, dropout_rate)
 
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
         att1 = self.word_attention.forward(inputs, word_pos_indices)

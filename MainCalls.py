@@ -39,7 +39,7 @@ word_embedding_pt = dict(glove='../word_embeddings/glove_word_vectors',
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 
 global vocab
-sub_score_categories = ['Cross Selling', 'Creates Incentive', 'Product Knowledge', 'Education', 'Processes', 'Greeting', 'Professionalism', 'Confidence',  'Retention',
+sub_score_categories = ['Cross Selling', 'Creates Incentive', 'Education', 'Processes', 'Product Knowledge', 'Greeting', 'Professionalism', 'Confidence',  'Retention',
                         'Documentation']
 
 def _parse_args():
@@ -308,7 +308,7 @@ if __name__ == "__main__":
     if args.model == 'AllSubScores':
         scoring_criteria = sub_score_categories
     elif args.model == 'BestSubScores':
-        scoring_criteria = sub_score_categories[:5]
+        scoring_criteria = sub_score_categories[:4]
     else:
         scoring_criteria = [args.model]
     if args.use_feedback:
