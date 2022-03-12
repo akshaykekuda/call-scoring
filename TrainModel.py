@@ -46,6 +46,10 @@ class TrainModel:
         elif self.args.attention == 'hsan':
             encoder = HSAN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
                            self.max_trans_len, self.max_sent_len, self.args.num_heads, self.args.dropout)
+        elif self.args.attention == 'hsan1':
+            encoder = HSAN1(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
+                           self.max_sent_len, self.args.word_nh, self.args.dropout, self.args.num_layers, 
+                           self.args.word_nlayers)
         elif self.args.attention == 'hs2an':
             encoder = HS2AN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
                             self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh, self.args.dropout, self.args.num_layers,

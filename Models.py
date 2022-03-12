@@ -230,6 +230,21 @@ class HSAN(nn.Module):
         return att2, sentence_att_scores
 
 
+class HSAN1(nn.Module):
+    def __init__(self, vocab_size, embedding_size, model_size, weights_matrix,
+                 max_sent_len, word_nh, dropout_rate, num_layers, word_num_layers):
+        super(HSAN, self).__init__()
+        self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
+                                                     max_sent_len, word_nh, dropout_rate, word_num_layers)
+        self.sentence_attention = SentenceAttention(embedding_size, model_size)
+        self.layerNorm = nn.LayerNorm(model_size)
+    def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
+        att1 = self.word_self_attention.forward(inputs, word_pos_indices)
+        # att1 = self.layerNorm(att1)
+        att2, sentence_att_scores = self.sentence_attention.forward(att1, trans_pos_indices)
+        # print(sentence_att_scores.shape)
+        return att2, sentence_att_scores
+
 class HS2AN(nn.Module):
     def __init__(self, vocab_size, embedding_size, model_size, weights_matrix, max_trans_len,
                  max_sent_len, word_nh, sent_nh, dropout_rate, num_layers, word_num_layers):
@@ -238,9 +253,12 @@ class HS2AN(nn.Module):
                                                      max_sent_len, word_nh, dropout_rate, word_num_layers)
         self.sentence_self_attention = SentenceSelfAttention(model_size, sent_nh, max_trans_len, dropout_rate, num_layers)
         self.layerNorm = nn.LayerNorm(model_size)
+        self.ffn = nn.Linear(embedding_size, model_size)
+
     def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
         att1 = self.word_self_attention.forward(inputs, word_pos_indices)
         # att1 = self.layerNorm(att1)
+        att1 = self.ffn(att1)
         att2, sentence_att_scores, value = self.sentence_self_attention.forward(att1, trans_pos_indices)
         # print(sentence_att_scores.shape)
         return att2, sentence_att_scores, value
@@ -314,7 +332,6 @@ class WordSelfAttention(nn.Module):
         # sent_embedding = torch.mean(attn_output, dim=1, keepdim=False)
         sent_embedding = sent_embedding.reshape(*inputs.size()[0:2], -1)
         # sent_embedding = torch.na n_to_num(sent_embedding)
-        sent_embedding = self.ffn(sent_embedding)
         return sent_embedding
 
 
