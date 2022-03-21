@@ -9,7 +9,7 @@ Original file is located at
 import argparse
 import datetime
 import sys
-import os
+import os, json
 from pathlib import Path
 from DatasetClasses import CallDataset, CallDatasetWithFbk, MLMDataSet
 from torch.utils.data import DataLoader,random_split
@@ -25,7 +25,7 @@ from sklearn.model_selection import train_test_split, KFold, ShuffleSplit
 from nltk.tokenize import word_tokenize
 from transformers import BertTokenizerFast, DataCollatorForLanguageModeling
 import random
-
+from tokenizers import BertWordPieceTokenizer
 import numpy as np
 import torch
 import pandas as pd
@@ -303,7 +303,7 @@ def run_cross_validation(train_df, test_df):
 
 def run_cross_validation_mlm(tokenizer):
     paths = [str(x) for x in Path(args.trans_path).glob("**/*.txt")]
-    mini_paths = random.sample(paths,args.train_samples)
+    mini_paths = random.sample(paths, args.train_samples)
     mlm_ds = MLMDataSet(mini_paths, tokenizer)
     train_size = int(0.8 * len(mlm_ds))
     test_size = len(mlm_ds) - train_size
@@ -328,11 +328,39 @@ def run_cross_validation_mlm(tokenizer):
     print("Test set loss = {}".format(test_error))
 
 
+def train_tokenizer(file_path, save_path):
+    paths = [str(x) for x in Path(file_path).glob("**/*.txt")]
+    tokenizer = BertWordPieceTokenizer()
+    tokenizer.train(files=paths, vocab_size=52_000, min_frequency=2, special_tokens=[
+        "[CLS]",
+        "[PAD]",
+        "[UNK]",
+        "[MASK]",
+        "[SEP]",
+    ], show_progress=True)
+    os.mkdir(save_path)
+    tokenizer.save_model(save_path)
+    with open(os.path.join(save_path, "config.json"), "w") as f:
+        tokenizer_cfg = {
+            "do_lower_case": True,
+            "unk_token": "[UNK]",
+            "sep_token": "[SEP]",
+            "pad_token": "[PAD]",
+            "cls_token": "[CLS]",
+            "mask_token": "[MASK]",
+            "model_max_length": 512,
+            "max_len": 512,
+        }
+        json.dump(tokenizer_cfg, f)
+
+
 if __name__ == "__main__":
     args = _parse_args()
     args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Arguments:", args)
     if args.model == 'mlm':
+        if not os.path.isdir(args.tok_path):
+            train_tokenizer(args.trans_path, args.tok_path)
         tokenizer = BertTokenizerFast.from_pretrained(args.tok_path, add_special_tokens=True)
         run_cross_validation_mlm(tokenizer)
     else:
