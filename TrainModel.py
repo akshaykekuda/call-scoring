@@ -11,7 +11,7 @@ from __future__ import unicode_literals, print_function, division
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 from Models import *
-from Inference_fns import val_get_metrics
+from Inference_fns import val_get_metrics, get_mlm_metrics
 from sklearn.utils import class_weight
 from torch.optim.lr_scheduler import MultiStepLR
 import torch.optim as optim
@@ -198,6 +198,7 @@ class TrainModel:
         print(model_optimizer)
         train_loss = []
         val_loss = []
+        best_val_error = float(inf)
         for n in range(epochs):
             epoch_loss = 0
             for idx, batch in enumerate(tqdm(self.dataloader_train)):
@@ -224,7 +225,10 @@ class TrainModel:
             train_metrics, train_error, train_auc = val_get_metrics(self.dataloader_train, model, self.scoring_criteria, self.args.loss, loss_fn)
             print("start of val on dev set")
             dev_metrics, val_error, val_auc = val_get_metrics(self.dataloader_dev, model, self.scoring_criteria, self.args.loss, loss_fn)
-           
+            if val_error < best_val_error:
+                model.eval()
+                torch.save(model, self.args.save_path + 'fold_' + str(self.fold) + '_best_model')
+                best_val_error = val_error
             print("Average training loss at epoch {}: {}".format(n, avg_epoch_loss))
             print("Average val loss at epoch {}: {}".format(n, val_error))
             
@@ -256,6 +260,7 @@ class TrainModel:
         print("Epoch Losses:", loss_arr)
         print("Training Evaluation Metrics: ", train_acc)
         print("Dev Evaluation Metrics: ", dev_acc)
+        model = torch.load(self.args.save_path + 'fold_' + str(self.fold) + '_best_model')
         return model
 
     def train_mtl(self, epochs, mtl_model, loss_fn, model_optimizer, scheduler):
@@ -302,3 +307,54 @@ class TrainModel:
         print("Training Evaluation Metrics: ", train_acc)
         print("Dev Evaluation Metrics: ", dev_acc)
         return mtl_model
+
+    def train_mlm_model(self, tokenizer):
+        model = MLMNetwork(self.args.model_size, tokenizer, self.args.dropout, self.args.word_nh)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.AdamW(model.parameters(), lr=self.args.lr)
+        loss_arr = []
+        train_loss = []
+        val_loss = []
+        best_val_error = float('inf')
+        for n in range(self.args.epochs):
+            epoch_loss = 0
+            model.train()
+            for batch in tqdm(self.dataloader_train):
+                output = model(batch)
+                labels = batch['labels'][batch['labels']!=-100]
+                if len(labels) == 0:
+                    continue
+                loss = criterion(output, labels)
+                optimizer.zero_grad()
+                epoch_loss += loss.detach().item()
+                loss.backward()
+                optimizer.step()
+                loss_arr.append(loss.detach().item())
+            avg_epoch_loss = epoch_loss / len(self.dataloader_train)
+            print("Average loss at epoch {}: {}".format(n, avg_epoch_loss))
+            print("start of val on train set")
+            train_error, _ = get_mlm_metrics(self.dataloader_train, model, tokenizer)
+            print("start of val on dev set")
+            val_error, _ = get_mlm_metrics(self.dataloader_dev, model, tokenizer)
+            if val_error < best_val_error:
+                model.eval()
+                torch.save(model, self.args.save_path + 'fold_' + str(self.fold) + '_best_mlm_model')
+                best_val_error = val_error
+            print("Average training loss at epoch {}: {}".format(n, avg_epoch_loss))
+            print("Average val loss at epoch {}: {}".format(n, val_error))
+            train_loss.append(train_error)
+            val_loss.append(val_error)
+        fig, axs = plt.subplots(1, 2, figsize=(16, 6))
+        fig.suptitle('Losses')
+        axs[0].plot(loss_arr)
+        axs[1].plot(val_loss, label='dev set')
+        axs[1].plot(train_loss, label='train set')
+        axs[0].title.set_text('training loss per token')
+        axs[1].title.set_text('val loss per epoch')
+        axs[1].legend()
+        plt.show()
+        plt.savefig(self.args.save_path + 'fold_' + str(self.fold) + '_loss.png')
+
+
+
+

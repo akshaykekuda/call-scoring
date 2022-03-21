@@ -14,7 +14,7 @@ from sklearn.metrics import classification_report, f1_score, mean_squared_error
 from PrepareDf import prepare_baseline_df
 from matplotlib import pyplot as plt
 from sklearn import metrics
-
+import torch.nn as nn
 
 def get_score_target(batch, loss, scoring_criteria):
     if loss == 'mse':
@@ -28,6 +28,29 @@ def get_score_target(batch, loss, scoring_criteria):
         target = torch.tensor([sample[scoring_criteria] for sample in batch['scores']],
                               dtype=torch.long)
     return target
+
+
+def get_mlm_metrics(dataloader, model, tokenizer):
+    model.eval()
+    criterion = nn.CrossEntropyLoss()
+    loss = 0
+    target_arr = []
+    pred_arr = []
+    with torch.no_grad():
+        for item in tqdm(dataloader):
+            output = model(item)
+            labels = item['labels'][item['labels'] != -100]
+            if len(labels) == 0:
+                continue
+            loss += criterion(output, labels).detach().item()
+            pred_ids = torch.argmax(output, dim=-1)
+            loss += criterion(output, labels)
+            target_arr.extend(tokenizer.convert_ids_to_tokens(labels))
+            pred_arr.extend(tokenizer.convert_ids_to_tokens(pred_ids))
+    df = pd.DataFrame()
+    df['Target Tokens'] = target_arr
+    df['Pred Tokens'] = pred_arr
+    return loss/len(dataloader), df
 
 
 def val_get_metrics(dataloader, model, scoring_criterion, loss, loss_fn):

@@ -338,6 +338,29 @@ class WordSelfAttention(nn.Module):
         return sent_embedding
 
 
+class MLMNetwork(nn.Module):
+    def __init__(self, embedding_size, tokenizer, dropout_rate, num_heads):
+        super(MLMNetwork, self).__init__()
+        vocab_size = len(tokenizer)
+        pad_idx = tokenizer.pad_token_id
+        self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx)
+        self.multihead_attn = nn.MultiheadAttention(embedding_size, dropout=dropout_rate, num_heads=num_heads,
+                                                    batch_first=True)
+        self.fcn = nn.Linear(embedding_size, vocab_size)
+
+    def forward(self, inputs):
+        embed_output = self.embedding(inputs['input_ids'])
+        padding_mask = inputs['attention_mask'] == 0
+        query = key = value = embed_output
+        attn_out, wt = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
+        masked_indices = inputs['labels'] != -100
+
+        masked_out = attn_out[masked_indices]
+        out = self.fcn(masked_out)
+        return out
+
+
+
 class EncoderFCN(nn.Module):
     def __init__(self, encoder, fcn):
         super(EncoderFCN, self).__init__()
