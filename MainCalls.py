@@ -302,8 +302,13 @@ def run_cross_validation(train_df, test_df):
 
 
 def run_cross_validation_mlm(tokenizer):
+    print("training mlm")
+
     paths = [str(x) for x in Path(args.trans_path).glob("**/*.txt")]
-    mini_paths = random.sample(paths, args.train_samples)
+    if args.train_samples>0:
+        mini_paths = random.sample(paths, args.train_samples)
+    else:
+        mini_paths = paths
     mlm_ds = MLMDataSet(mini_paths, tokenizer)
     train_size = int(0.8 * len(mlm_ds))
     test_size = len(mlm_ds) - train_size
@@ -329,6 +334,7 @@ def run_cross_validation_mlm(tokenizer):
 
 
 def train_tokenizer(file_path, save_path):
+    print("training tokenizer")
     paths = [str(x) for x in Path(file_path).glob("**/*.txt")]
     tokenizer = BertWordPieceTokenizer()
     tokenizer.train(files=paths, vocab_size=52_000, min_frequency=2, special_tokens=[
