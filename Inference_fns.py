@@ -45,8 +45,8 @@ def get_mlm_metrics(dataloader, model, tokenizer):
             loss += criterion(output, labels).detach().item()
             pred_ids = torch.argmax(output, dim=-1)
             loss += criterion(output, labels)
-            target_arr.extend(tokenizer.convert_ids_to_tokens(labels))
-            pred_arr.extend(tokenizer.convert_ids_to_tokens(pred_ids))
+            target_arr.append(tokenizer.convert_ids_to_tokens(labels))
+            pred_arr.append(tokenizer.convert_ids_to_tokens(pred_ids))
     df = pd.DataFrame()
     df['Target Tokens'] = target_arr
     df['Pred Tokens'] = pred_arr

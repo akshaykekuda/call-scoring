@@ -198,7 +198,7 @@ class TrainModel:
         print(model_optimizer)
         train_loss = []
         val_loss = []
-        best_val_error = float(inf)
+        best_val_error = float('inf')
         for n in range(epochs):
             epoch_loss = 0
             for idx, batch in enumerate(tqdm(self.dataloader_train)):

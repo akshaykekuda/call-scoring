@@ -305,6 +305,7 @@ def run_cross_validation_mlm(tokenizer):
     print("training mlm")
 
     paths = [str(x) for x in Path(args.trans_path).glob("**/*.txt")]
+    print(args.train_samples)
     if args.train_samples>0:
         mini_paths = random.sample(paths, args.train_samples)
     else:
