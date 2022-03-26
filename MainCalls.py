@@ -9,10 +9,10 @@ Original file is located at
 import argparse
 import datetime
 import sys
-import os
-
-from DatasetClasses import CallDataset, CallDatasetWithFbk
-from torch.utils.data import DataLoader
+import os, json
+from pathlib import Path
+from DatasetClasses import CallDataset, CallDatasetWithFbk, MLMDataSet
+from torch.utils.data import DataLoader,random_split
 from DataLoader_fns import Collate
 from FeedbackComments import FeedbackComments
 from gensim.models import Word2Vec
@@ -23,12 +23,15 @@ from Inference_fns import *
 from PrepareDf import *
 from sklearn.model_selection import train_test_split, KFold, ShuffleSplit
 from nltk.tokenize import word_tokenize
-
+from transformers import BertTokenizerFast, DataCollatorForLanguageModeling
+import random
+from tokenizers import BertWordPieceTokenizer
 import numpy as np
 import torch
 import pandas as pd
 import time
 seed = 1000
+random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 
@@ -75,6 +78,7 @@ def _parse_args():
     parser.add_argument("--word_nlayers", default=1, type=int, help="num of layers of word level self attention")
     parser.add_argument("--reg", default=1e-5, type=float, help="l2 regularization")
     parser.add_argument("--acum_step", default=1, type=int, help="grad accumulation steps")
+    parser.add_argument("--tok_path", default='sa_tokenizer/', type=str, help="path to trained tokenizer")
 
     args = parser.parse_args()
     return args
@@ -297,30 +301,96 @@ def run_cross_validation(train_df, test_df):
     return kfold_results
 
 
+def run_cross_validation_mlm(tokenizer):
+    print("training mlm")
+
+    paths = [str(x) for x in Path(args.trans_path).glob("**/*.txt")]
+    print(args.train_samples)
+    if args.train_samples>0:
+        mini_paths = random.sample(paths, args.train_samples)
+    else:
+        mini_paths = paths
+    mlm_ds = MLMDataSet(mini_paths, tokenizer)
+    train_size = int(0.8 * len(mlm_ds))
+    test_size = len(mlm_ds) - train_size
+    train_dataset, dev_dataset = random_split(mlm_ds, [train_size, test_size])
+    test_paths = [str(x) for x in Path(args.test_path).glob("**/*.txt")]
+    test_dataset = MLMDataSet(test_paths, tokenizer)
+    collator = DataCollatorForLanguageModeling(tokenizer)
+    dataloader_transcripts_train = DataLoader(train_dataset, batch_size=4, shuffle=True,
+                                              collate_fn=collator.torch_call)
+    dataloader_transcripts_dev = DataLoader(dev_dataset, batch_size=4, shuffle=True,
+                                              collate_fn=collator.torch_call)
+    dataloader_transcripts_test = DataLoader(test_dataset, batch_size=1, shuffle=True,
+                                             collate_fn=collator.torch_call)
+    max_trans_len, max_sent_len = 512, 128
+    fold = 0
+    trainer = TrainModel(dataloader_transcripts_train, dataloader_transcripts_dev, None, None,
+                         None, args, max_trans_len, max_sent_len, None, fold)
+    trainer.train_mlm_model(tokenizer)
+    model = torch.load(args.save_path + 'fold_' + str(fold) + '_best_mlm_model')
+    test_error, pred_df = get_mlm_metrics(dataloader_transcripts_test, model, tokenizer)
+    pred_df.to_pickle(args.save_path+'fold_' + str(trainer.fold)+'_mlm_test.p')
+    print("Test set loss = {}".format(test_error))
+
+
+def train_tokenizer(file_path, save_path):
+    print("training tokenizer")
+    paths = [str(x) for x in Path(file_path).glob("**/*.txt")]
+    tokenizer = BertWordPieceTokenizer()
+    tokenizer.train(files=paths, vocab_size=52_000, min_frequency=2, special_tokens=[
+        "[CLS]",
+        "[PAD]",
+        "[UNK]",
+        "[MASK]",
+        "[SEP]",
+    ], show_progress=True)
+    os.mkdir(save_path)
+    tokenizer.save_model(save_path)
+    with open(os.path.join(save_path, "config.json"), "w") as f:
+        tokenizer_cfg = {
+            "do_lower_case": True,
+            "unk_token": "[UNK]",
+            "sep_token": "[SEP]",
+            "pad_token": "[PAD]",
+            "cls_token": "[CLS]",
+            "mask_token": "[MASK]",
+            "model_max_length": 512,
+            "max_len": 512,
+        }
+        json.dump(tokenizer_cfg, f)
+
+
 if __name__ == "__main__":
     args = _parse_args()
     args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Arguments:", args)
-    score_df, q_text = prepare_score_df(
-        path_to_handscored_p, workgroup=args.workgroup)
-    train_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
-    test_df = prepare_trancript_score_df(score_df, q_text, args.test_path)
-    if args.model == 'AllSubScores':
-        scoring_criteria = sub_score_categories
-    elif args.model == 'BestSubScores':
-        scoring_criteria = sub_score_categories[:4]
+    if args.model == 'mlm':
+        if not os.path.isdir(args.tok_path):
+            train_tokenizer(args.trans_path, args.tok_path)
+        tokenizer = BertTokenizerFast.from_pretrained(args.tok_path, add_special_tokens=True)
+        run_cross_validation_mlm(tokenizer)
     else:
-        scoring_criteria = [args.model]
-    if args.use_feedback:
-        comment_obj = FeedbackComments(train_df, args.k)
-        top_k_comments = comment_obj.extract_top_k_comments(scoring_criteria)
-        train_df = comment_obj.df
-    if args.train_samples > 0:
-        train_df = balance_df(train_df, args.train_samples)
+        score_df, q_text = prepare_score_df(
+            path_to_handscored_p, workgroup=args.workgroup)
+        train_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
+        test_df = prepare_trancript_score_df(score_df, q_text, args.test_path)
+        if args.model == 'AllSubScores':
+            scoring_criteria = sub_score_categories
+        elif args.model == 'BestSubScores':
+            scoring_criteria = sub_score_categories[:4]
+        else:
+            scoring_criteria = [args.model]
+        if args.use_feedback:
+            comment_obj = FeedbackComments(train_df, args.k)
+            top_k_comments = comment_obj.extract_top_k_comments(scoring_criteria)
+            train_df = comment_obj.df
+        if args.train_samples > 0:
+            train_df = balance_df(train_df, args.train_samples)
 
-    subscore_dist = test_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
-    print("Subscore distribution count in Test set\n", subscore_dist)
-    kfold_results = run_cross_validation(train_df, test_df)
+        subscore_dist = test_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
+        print("Subscore distribution count in Test set\n", subscore_dist)
+        kfold_results = run_cross_validation(train_df, test_df)
 
     # avg_tuple = [sum(y) / len(y) for y in zip(*kfold_results)]
     # print("Overall accuracy={} Overall F1 score={}".format(avg_tuple[0], avg_tuple[1]))

@@ -103,3 +103,17 @@ class InferenceCallDataSet(Dataset):
         self.df['text'] = self.df.file_name.apply(lambda x: preprocess_transcript(x))
     def __len__(self):
         return len(self.df)
+
+
+class MLMDataSet(Dataset):
+    def __init__(self, paths, tokenizer):
+        self.sentences = []
+        for file in paths:
+            with open(file, 'r') as f:
+                sent = f.readlines()
+                self.sentences.extend([line.strip('\n') for line in sent])
+        self.tokenizer = tokenizer
+    def __len__(self):
+        return len(self.sentences)
+    def __getitem__(self, idx):
+        return self.tokenizer(self.sentences[idx])
