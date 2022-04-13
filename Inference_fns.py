@@ -54,88 +54,6 @@ def get_mlm_metrics(dataloader, model, tokenizer):
     return loss/len(dataloader), df
 
 
-def doc2vec_metrics(dataloader, model, scoring_criterion, loss, loss_fn):
-    id_arr = []
-    text_arr = []
-    attn_score_arr = []
-    pred_arr = []
-    target_arr = []
-    raw_pred_arr = []
-    model.eval()
-    thresh = 0.5
-    val_loss = 0
-    with torch.no_grad():
-        for batch in (dataloader):
-            outputs, scores, _ = model(batch['text'])
-            output = outputs[0]
-            targets = get_score_target(batch, loss, scoring_criterion)
-            l = 0
-            if loss == 'cel':
-                for i in range(len(scoring_criterion)):
-                    l += loss_fn[i](outputs[0][:, 2 * i:2 * (i + 1)], targets[:, i])
-                l /= 2 * len(scoring_criterion)
-            else:
-                l += loss_fn(outputs[0], targets)
-            val_loss += l.detach().item()
-
-            target = [sample[scoring_criterion].tolist() for sample in batch['scores']]
-            if loss == 'mse':
-                raw_proba = [None for i in range(len(scoring_criterion))]
-                pred = output.numpy()
-            elif loss == 'bce':
-                raw_proba = torch.sigmoid(output)
-                pred = ((raw_proba > thresh).long()).tolist()
-                raw_proba = raw_proba.tolist()
-            elif loss == 'cel':
-                output = output.reshape(-1, len(scoring_criterion), 2)
-                probs = torch.softmax(output, dim=-1)
-                max_vals = torch.max(probs, dim=-1)
-                raw_proba = probs[:, :, 1].tolist()
-                pred = max_vals[1].tolist()
-            else:
-                raise ValueError("Cannot do inference")
-            raw_pred_arr.extend(raw_proba)
-            pred_arr.extend(pred)
-            target_arr.extend(target)
-            id_arr.extend(batch['id'])
-            text_arr.extend(batch['text'])
-            attn_score_arr.extend(scores.numpy())
-        raw_pred_df = pd.DataFrame(raw_pred_arr, columns=['RawProba ' + category for category in scoring_criterion])
-        pred_df = pd.DataFrame(pred_arr, columns=['Pred ' + category for category in scoring_criterion])
-        target_df = pd.DataFrame(target_arr, columns=['True ' + category for category in scoring_criterion])
-        df = pd.concat((pred_df, target_df, raw_pred_df), axis=1)
-        df['id'] = id_arr
-        df['text'] = text_arr
-        df['scores'] = attn_score_arr
-    model.train()
-    print("Sample predictions")
-    print("target:", target_arr[:10])
-    print("prediction:", pred_arr[:10])
-
-    if loss == 'mse':
-        mse_error = mean_squared_error(target_arr, pred_arr)
-        print("MSE Error = {}".format(mse_error))
-        return mse_error, val_loss/len(dataloader)
-    else:
-        # f1 = f1_score(target_arr, pred_arr)
-        auc_arr = []
-        for i in range(len(scoring_criterion)):
-            crit = scoring_criterion[i]
-            print("Category:", crit)
-            print(classification_report(target_df.iloc[:, i], pred_df.iloc[:, i]))
-            y_pred_proba = df['RawProba ' + crit]
-            y_true = df['True ' + crit]
-            if not y_pred_proba.isna().sum():
-                fpr, tpr, _ = metrics.roc_curve(y_true, y_pred_proba)
-                auc = metrics.roc_auc_score(y_true, y_pred_proba).round(2)
-                auc_arr.append(auc)
-                # print("AUC for {} = {}".format(crit, auc))
-            else:
-                print("raw scores may be NAN for {}".format(crit))
-        clr = classification_report(target_arr, pred_arr)
-        return clr, val_loss/len(dataloader), auc_arr
-
-
 def val_get_metrics(dataloader, model, scoring_criterion, loss, loss_fn):
     id_arr = []
     text_arr = []
@@ -148,8 +66,7 @@ def val_get_metrics(dataloader, model, scoring_criterion, loss, loss_fn):
     val_loss = 0
     with torch.no_grad():
         for batch in (dataloader):
-            outputs, scores, _ = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
-                                    batch['word_pos_indices'])
+            outputs, scores, _ = model(batch)
             output = outputs[0]
             targets = get_score_target(batch, loss, scoring_criterion)
             l = 0
@@ -230,8 +147,7 @@ def get_metrics(dataloader, model, scoring_criterion, loss):
     thresh = 0.5
     with torch.no_grad():
         for batch in tqdm(dataloader):
-            outputs, scores, _ = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
-                                    batch['word_pos_indices'])
+            outputs, scores, _ = model(batch)
             output = outputs[0]
             target = [sample[scoring_criterion].tolist() for sample in batch['scores']]
             if loss == 'mse':

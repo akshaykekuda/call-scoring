@@ -8,7 +8,6 @@ Original file is located at
 """
 
 from __future__ import unicode_literals, print_function, division
-from multiprocessing import reduction
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 from Models import *
@@ -56,7 +55,7 @@ class TrainModel:
                             self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh, self.args.dropout, self.args.num_layers,
                             self.args.word_nlayers)
         elif self.args.attention == 'doc2vec':
-            encoder = Doc2Vec(self.args.doc2vec_pt)
+            encoder = PretrainDoc2Vec(self.args.doc2vec_pt)
 
         else:
             raise ValueError("Invalid Attention Model argument")
@@ -112,8 +111,6 @@ class TrainModel:
             loss_fn_arr.append(nn.CrossEntropyLoss(weight=class_weights[i], reduction='mean'))
         model_optimizer = optim.AdamW(model.parameters(), lr=self.args.lr, weight_decay=self.args.reg)
         scheduler = MultiStepLR(model_optimizer, milestones=[15, 35], gamma=0.1)
-        if self.args.model=='doc2vec':
-            model = self.train_doc2vec_model(self.args.epochs, model, loss_fn_arr, model_optimizer, scheduler)
         model = self.train_model(self.args.epochs, model, loss_fn_arr, model_optimizer, scheduler)
         return model
 
@@ -204,13 +201,12 @@ class TrainModel:
         print(model_optimizer)
         train_loss = []
         val_loss = []
-        best_val_error = float('inf')
+        best_val_error = float("inf")
         for n in range(epochs):
             epoch_loss = 0
-            for idx, batch in enumerate((self.dataloader_train)):
+            for idx, batch in enumerate(tqdm(self.dataloader_train)):
                 loss = 0
-                outputs, scores, _ = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
-                                        batch['word_pos_indices'])
+                outputs, scores, _ = model(batch)
                 targets = self.get_score_target(batch)
                 if self.args.loss == 'cel':
                     for i in range(len(self.scoring_criteria)):
@@ -281,10 +277,9 @@ class TrainModel:
         print(model_optimizer)
         for n in range(epochs):
             epoch_loss = 0
-            for batch in (self.dataloader_train):
+            for batch in tqdm(self.dataloader_train):
                 loss = 0
-                outputs, scores, _ = mtl_model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
-                                            batch['word_pos_indices'])
+                outputs, scores, _ = mtl_model(batch)
                 targets = [self.get_score_target(batch)]
                 target2 = [torch.tensor(batch[criterion+" fbk_vector"], dtype=float, device=self.args.device)
                            for criterion in self.scoring_criteria]
@@ -315,15 +310,9 @@ class TrainModel:
         return mtl_model
 
     def train_mlm_model(self, tokenizer):
-        model = MLMNetwork(self.args.model_size, tokenizer, self.args.dropout, self.args.word_nh, self.args.word_nlayers)
-        criterion = nn.CrossEntropyLoss(reduction='none')
-        for p in model.parameters():
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)
+        model = MLMNetwork(self.args.model_size, tokenizer, self.args.dropout, self.args.word_nh)
+        criterion = nn.CrossEntropyLoss()
         optimizer = optim.AdamW(model.parameters(), lr=self.args.lr)
-        print(model)
-        print(criterion)
-        print(optimizer)
         loss_arr = []
         train_loss = []
         val_loss = []
@@ -331,21 +320,17 @@ class TrainModel:
         for n in range(self.args.epochs):
             epoch_loss = 0
             model.train()
-            for batch in (self.dataloader_train):
-                masked_indices = batch['labels']!=-100
-                output = model(batch).flatten(0,1)
-                labels = batch['labels'].flatten(0,1)
+            for batch in tqdm(self.dataloader_train):
+                output = model(batch)
+                labels = batch['labels'][batch['labels']!=-100]
                 if len(labels) == 0:
                     continue
                 loss = criterion(output, labels)
-                pos_los = loss[loss>0].mean()
-                epoch_loss += pos_los.detach().item()
-                loss_arr.append(pos_los.detach().item())
-                pos_los/=self.args.acum_step
-                pos_los.backward()
-                if (n%self.args.acum_step == self.args.acum_step-1) or n == len(self.dataloader_train)-1:
-                    optimizer.step()
-                    optimizer.zero_grad()
+                optimizer.zero_grad()
+                epoch_loss += loss.detach().item()
+                loss.backward()
+                optimizer.step()
+                loss_arr.append(loss.detach().item())
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
             print("Average loss at epoch {}: {}".format(n, avg_epoch_loss))
             print("start of val on train set")
@@ -370,82 +355,7 @@ class TrainModel:
         axs[1].legend()
         plt.show()
         plt.savefig(self.args.save_path + 'fold_' + str(self.fold) + '_loss.png')
-    
-    def train_doc2vec_model(self, epochs, model, loss_fn, model_optimizer, scheduler):
-        print("inside train model without feedback")
-        train_acc = []
-        dev_acc = []
-        model = model.to(self.args.device)
-        model.train()
-        loss_arr = []
-        print(model)
-        print(loss_fn)
-        print(model_optimizer)
-        train_loss = []
-        val_loss = []
-        best_val_error = float('inf')
-        for n in range(epochs):
-            epoch_loss = 0
-            for idx, batch in enumerate((self.dataloader_train)):
-                loss = 0
-                outputs, scores, _ = model(batch['text'])
-                targets = self.get_score_target(batch)
-                if self.args.loss == 'cel':
-                    for i in range(len(self.scoring_criteria)):
-                        loss += loss_fn[i](outputs[0][:, 2*i:2*(i+1)], targets[:, i])
-                    # loss /= 2*len(self.scoring_criteria)*self.args.acum_step
-                else:
-                    loss += loss_fn(outputs[0], targets)
-                epoch_loss += loss.detach().item()
-                loss.backward()
-                # nn.utils.clip_grad_norm_(model.parameters(), max_norm=5)
-                if (idx%self.args.acum_step == self.args.acum_step-1) or idx == len(self.dataloader_train)-1:
-                    model_optimizer.step()
-                    model_optimizer.zero_grad()
-            # scheduler.step()
-            avg_epoch_loss = epoch_loss / len(self.dataloader_train)
-            loss_arr.append(avg_epoch_loss)
-            print("start of val on train set")
-            train_metrics, train_error, train_auc = val_get_metrics(self.dataloader_train, model, self.scoring_criteria, self.args.loss, loss_fn)
-            print("start of val on dev set")
-            dev_metrics, val_error, val_auc = val_get_metrics(self.dataloader_dev, model, self.scoring_criteria, self.args.loss, loss_fn)
-            if val_error < best_val_error:
-                model.eval()
-                torch.save(model, self.args.save_path + 'fold_' + str(self.fold) + '_best_model')
-                best_val_error = val_error
-            print("Average training loss at epoch {}: {}".format(n, avg_epoch_loss))
-            print("Average val loss at epoch {}: {}".format(n, val_error))
-            
-            print("Training metric at end of epoch {}:".format(n))
-            print(train_metrics)
-            for i, crit in enumerate(self.scoring_criteria):
-                print("Train AUC for {} = {}".format(crit, train_auc[i]))
-            
-            print("Dev metric at end of epoch {}:".format(n))
-            print(dev_metrics)
-            for i, crit in enumerate(self.scoring_criteria):
-                print("Dev AUC for {} = {}".format(crit, val_auc[i]))            
-            
-            train_acc.append(train_metrics)
-            dev_acc.append(dev_metrics)
-            train_loss.append(train_error)
-            val_loss.append(val_error)
-            model.train()
-        fig, axs = plt.subplots(1, 2, figsize=(16,6))
-        fig.suptitle('Losses')
-        axs[0].plot(loss_arr)
-        axs[1].plot(val_loss, label = 'dev set')
-        axs[1].plot(train_loss, label='train set')
-        axs[0].title.set_text('training loss')
-        axs[1].title.set_text('val loss')
-        axs[1].legend()
-        plt.show()
-        plt.savefig(self.args.save_path + 'fold_'+ str(self.fold) + '_loss.png')
-        print("Epoch Losses:", loss_arr)
-        print("Training Evaluation Metrics: ", train_acc)
-        print("Dev Evaluation Metrics: ", dev_acc)
-        model = torch.load(self.args.save_path + 'fold_' + str(self.fold) + '_best_model')
-        return model
+
 
 
 

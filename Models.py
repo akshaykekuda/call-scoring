@@ -125,7 +125,9 @@ class GRUAttention(nn.Module):
             nn.Tanh()
         )
 
-    def forward(self, inputs, lens, trans_pos_indices, _):
+    def forward(self, batch):
+        inputs = batch['indices']
+        trans_pos_indices = batch['trans_pos_indices']
         embed_output = self.embedding(inputs)
         # print(embed_output)
         attn_mask = trans_pos_indices == 0
@@ -151,7 +153,10 @@ class HAN(nn.Module):
         self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
         self.sentence_attention = SentenceAttention(2 * hidden_size, hidden_size)
 
-    def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
+    def forward(self, batch):
+        inputs = batch['indices']
+        trans_pos_indices = batch['trans_pos_indices']
+        word_pos_indices = batch['word_pos_indices']
         att1 = self.word_attention.forward(inputs, word_pos_indices)
         att2, sentence_att_scores = self.sentence_attention.forward(att1, trans_pos_indices)
         return att2, sentence_att_scores
@@ -226,7 +231,10 @@ class HSAN(nn.Module):
         self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
         self.sentence_self_attention = SentenceSelfAttention(hidden_size, num_heads, max_trans_len, dropout_rate)
 
-    def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
+    def forward(self, batch):
+        inputs = batch['indices']
+        trans_pos_indices = batch['trans_pos_indices']
+        word_pos_indices = batch['word_pos_indices']
         att1 = self.word_attention.forward(inputs, word_pos_indices)
         att2, sentence_att_scores = self.sentence_self_attention.forward(att1, trans_pos_indices)
         return att2, sentence_att_scores
@@ -241,7 +249,10 @@ class HSAN1(nn.Module):
         self.sentence_attention = SentenceAttention(embedding_size, model_size)
         self.layerNorm = nn.LayerNorm(model_size)
 
-    def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
+    def forward(self, batch):
+        inputs = batch['indices']
+        trans_pos_indices = batch['trans_pos_indices']
+        word_pos_indices = batch['word_pos_indices']
         att1 = self.word_self_attention.forward(inputs, word_pos_indices)
         # att1 = self.layerNorm(att1)
         att2, sentence_att_scores,  = self.sentence_attention.forward(att1, trans_pos_indices)
@@ -259,7 +270,10 @@ class HS2AN(nn.Module):
         self.layerNorm = nn.LayerNorm(model_size)
         self.ffn = nn.Linear(embedding_size, model_size)
 
-    def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
+    def forward(self, batch):
+        inputs = batch['indices']
+        trans_pos_indices = batch['trans_pos_indices']
+        word_pos_indices = batch['word_pos_indices']
         att1 = self.word_self_attention.forward(inputs, word_pos_indices)
         # att1 = self.layerNorm(att1)
         att1 = self.ffn(att1)
@@ -340,40 +354,41 @@ class WordSelfAttention(nn.Module):
 
 
 class MLMNetwork(nn.Module):
-    def __init__(self, embedding_size, tokenizer, dropout_rate, num_heads, nlayers):
+    def __init__(self, embedding_size, tokenizer, dropout_rate, num_heads):
         super(MLMNetwork, self).__init__()
         vocab_size = len(tokenizer)
         pad_idx = tokenizer.pad_token_id
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx)
         self.multihead_attn = nn.MultiheadAttention(embedding_size, dropout=dropout_rate, num_heads=num_heads,
                                                     batch_first=True)
-        self.encoder = get_clones(self.multihead_attn, nlayers)
         self.fcn = nn.Linear(embedding_size, vocab_size)
 
     def forward(self, inputs):
         embed_output = self.embedding(inputs['input_ids'])
         padding_mask = inputs['attention_mask'] == 0
-        for layer in self.encoder:
-            query = key = value = embed_output
-            embed_output, wt = layer(query, key, value, key_padding_mask=padding_mask)
-        attn_out = embed_output
+        query = key = value = embed_output
+        attn_out, wt = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
         masked_indices = inputs['labels'] != -100
-        # masked_out = attn_out[masked_indices]
-        # out = self.fcn(masked_out)
-        
-        out = self.fcn(attn_out)
+
+        masked_out = attn_out[masked_indices]
+        out = self.fcn(masked_out)
         return out
 
 class PretrainDoc2Vec(nn.Module):
     def __init__(self, model_pt) -> None:
         super().__init__()
         self.model = Doc2Vec.load(model_pt)
-    def forward(self, input):
+
+    def forward(self, batch):
+        input = batch['text']
         bs = len(input)
-        vectors = np.array([])
+        vectors = np.zeros(shape=(bs, self.model.vector_size))
         for i in range(bs):
-            vectors = np.append(vectors, self.model.infer_vector(input[i]))
-        return torch.tensor(vectors)
+            text = ' '.join(input[i])
+            text = [word for word in text.split() if word!='<pad>']
+            vectors[i] = self.model.infer_vector(text)
+        return torch.tensor(vectors, dtype=torch.float), torch.zeros(bs), None
+
 
 class EncoderFCN(nn.Module):
     def __init__(self, encoder, fcn):
@@ -381,8 +396,8 @@ class EncoderFCN(nn.Module):
         self.encoder = encoder
         self.fcn = fcn
 
-    def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
-        encoder_out, attn_scores = self.encoder.forward(inputs, lens, trans_pos_indices, word_pos_indices)
+    def forward(self, batch):
+        encoder_out, attn_scores = self.encoder.forward(batch)
         output = self.fcn.forward(encoder_out)
         return output, attn_scores
 
@@ -395,14 +410,15 @@ class EncoderMTL(nn.Module):
         self.mtl_head = get_clones(head, N)
         self.N = N
 
-    def forward(self, inputs, lens, trans_pos_indices, word_pos_indices):
+    def forward(self, batch):
         outputs = []
-        encoder_out, attn_scores, value = self.encoder.forward(inputs, lens, trans_pos_indices, word_pos_indices)
+        encoder_out, attn_scores, value = self.encoder.forward(batch)
         fcn_output = self.fcn.forward(encoder_out)
         outputs.append(fcn_output)
         for i in range(self.N):
             outputs.append(self.mtl_head[i].forward(encoder_out))
         return outputs, attn_scores, value
+
 
 
 def get_clones(module, N):
