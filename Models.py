@@ -339,24 +339,28 @@ class WordSelfAttention(nn.Module):
 
 
 class MLMNetwork(nn.Module):
-    def __init__(self, embedding_size, tokenizer, dropout_rate, num_heads):
+    def __init__(self, embedding_size, tokenizer, dropout_rate, num_heads, nlayers):
         super(MLMNetwork, self).__init__()
         vocab_size = len(tokenizer)
         pad_idx = tokenizer.pad_token_id
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx)
         self.multihead_attn = nn.MultiheadAttention(embedding_size, dropout=dropout_rate, num_heads=num_heads,
                                                     batch_first=True)
+        self.encoder = get_clones(self.multihead_attn, nlayers)
         self.fcn = nn.Linear(embedding_size, vocab_size)
 
     def forward(self, inputs):
         embed_output = self.embedding(inputs['input_ids'])
         padding_mask = inputs['attention_mask'] == 0
-        query = key = value = embed_output
-        attn_out, wt = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
+        for layer in self.encoder:
+            query = key = value = embed_output
+            embed_output, wt = layer(query, key, value, key_padding_mask=padding_mask)
+        attn_out = embed_output
         masked_indices = inputs['labels'] != -100
-
-        masked_out = attn_out[masked_indices]
-        out = self.fcn(masked_out)
+        # masked_out = attn_out[masked_indices]
+        # out = self.fcn(masked_out)
+        
+        out = self.fcn(attn_out)
         return out
 
 

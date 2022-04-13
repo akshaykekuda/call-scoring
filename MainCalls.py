@@ -314,7 +314,8 @@ def run_cross_validation_mlm(tokenizer):
     train_size = int(0.8 * len(mlm_ds))
     test_size = len(mlm_ds) - train_size
     train_dataset, dev_dataset = random_split(mlm_ds, [train_size, test_size])
-    test_paths = [str(x) for x in Path(args.test_path).glob("**/*.txt")]
+    all_test_paths = [str(x) for x in Path(args.test_path).glob("**/*.txt")]
+    test_paths = random.sample(all_test_paths, args.train_samples//10)
     test_dataset = MLMDataSet(test_paths, tokenizer)
     collator = DataCollatorForLanguageModeling(tokenizer)
     dataloader_transcripts_train = DataLoader(train_dataset, batch_size=4, shuffle=True,

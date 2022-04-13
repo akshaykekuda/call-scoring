@@ -8,6 +8,7 @@ Original file is located at
 """
 
 from __future__ import unicode_literals, print_function, division
+from multiprocessing import reduction
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 from Models import *
@@ -201,7 +202,7 @@ class TrainModel:
         best_val_error = float('inf')
         for n in range(epochs):
             epoch_loss = 0
-            for idx, batch in enumerate(tqdm(self.dataloader_train)):
+            for idx, batch in enumerate((self.dataloader_train)):
                 loss = 0
                 outputs, scores, _ = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
                                         batch['word_pos_indices'])
@@ -275,7 +276,7 @@ class TrainModel:
         print(model_optimizer)
         for n in range(epochs):
             epoch_loss = 0
-            for batch in tqdm(self.dataloader_train):
+            for batch in (self.dataloader_train):
                 loss = 0
                 outputs, scores, _ = mtl_model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
                                             batch['word_pos_indices'])
@@ -309,9 +310,15 @@ class TrainModel:
         return mtl_model
 
     def train_mlm_model(self, tokenizer):
-        model = MLMNetwork(self.args.model_size, tokenizer, self.args.dropout, self.args.word_nh)
-        criterion = nn.CrossEntropyLoss()
+        model = MLMNetwork(self.args.model_size, tokenizer, self.args.dropout, self.args.word_nh, self.args.word_nlayers)
+        criterion = nn.CrossEntropyLoss(reduction='none')
+        for p in model.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
         optimizer = optim.AdamW(model.parameters(), lr=self.args.lr)
+        print(model)
+        print(criterion)
+        print(optimizer)
         loss_arr = []
         train_loss = []
         val_loss = []
@@ -319,17 +326,21 @@ class TrainModel:
         for n in range(self.args.epochs):
             epoch_loss = 0
             model.train()
-            for batch in tqdm(self.dataloader_train):
-                output = model(batch)
-                labels = batch['labels'][batch['labels']!=-100]
+            for batch in (self.dataloader_train):
+                masked_indices = batch['labels']!=-100
+                output = model(batch).flatten(0,1)
+                labels = batch['labels'].flatten(0,1)
                 if len(labels) == 0:
                     continue
                 loss = criterion(output, labels)
-                optimizer.zero_grad()
-                epoch_loss += loss.detach().item()
-                loss.backward()
-                optimizer.step()
-                loss_arr.append(loss.detach().item())
+                pos_los = loss[loss>0].mean()
+                epoch_loss += pos_los.detach().item()
+                loss_arr.append(pos_los.detach().item())
+                pos_los/=self.args.acum_step
+                pos_los.backward()
+                if (n%self.args.acum_step == self.args.acum_step-1) or n == len(self.dataloader_train)-1:
+                    optimizer.step()
+                    optimizer.zero_grad()
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
             print("Average loss at epoch {}: {}".format(n, avg_epoch_loss))
             print("start of val on train set")
