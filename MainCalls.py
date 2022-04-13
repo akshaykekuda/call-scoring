@@ -79,6 +79,7 @@ def _parse_args():
     parser.add_argument("--reg", default=1e-5, type=float, help="l2 regularization")
     parser.add_argument("--acum_step", default=1, type=int, help="grad accumulation steps")
     parser.add_argument("--tok_path", default='sa_tokenizer/', type=str, help="path to trained tokenizer")
+    parser.add_argument("--doc2vec_pt", default='../word_embeddings/trained_doc2vec', type=str, help="path to trained doc2vec model")
 
     args = parser.parse_args()
     return args

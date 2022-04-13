@@ -8,6 +8,7 @@ Original file is located at
 """
 
 from __future__ import unicode_literals, print_function, division
+from turtle import forward
 import torch
 import torch.nn as nn
 import numpy as np
@@ -15,7 +16,7 @@ import torch.nn.functional as F
 import copy
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from Custom_Multihead_Attention import custom_multi_head_attention_forward
-
+from gensim.models.doc2vec import Doc2Vec
 F.multi_head_attention_forward = custom_multi_head_attention_forward
 
 class FCN_Tanh(nn.Module):
@@ -363,7 +364,16 @@ class MLMNetwork(nn.Module):
         out = self.fcn(attn_out)
         return out
 
-
+class PretrainDoc2Vec(nn.Module):
+    def __init__(self, model_pt) -> None:
+        super().__init__()
+        self.model = Doc2Vec.load(model_pt)
+    def forward(self, input):
+        bs = len(input)
+        vectors = np.array([])
+        for i in range(bs):
+            vectors = np.append(vectors, self.model.infer_vector(input[i]))
+        return torch.tensor(vectors)
 
 class EncoderFCN(nn.Module):
     def __init__(self, encoder, fcn):
