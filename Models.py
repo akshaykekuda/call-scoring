@@ -83,6 +83,7 @@ class EncoderRNN(nn.Module):
         output = output[:, -1, :]
         return output, None
 
+"""
 
 class LSTMAttention(nn.Module):
     def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate):
@@ -108,31 +109,32 @@ class LSTMAttention(nn.Module):
         attn_scores = F.softmax(attn_weights, 1)
         out = torch.bmm(output.transpose(1, 2), attn_scores).squeeze(2)
         return out, attn_scores.squeeze(2)
+"""
 
-
-class GRUAttention(nn.Module):
+class LSTMAttention(nn.Module):
     def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate):
-        super(GRUAttention, self).__init__()
+        super(LSTMAttention, self).__init__()
 
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
         self.embedding.load_state_dict({'weight': weights_matrix})
         self.hidden_size = hidden_size
-        self.gru = nn.GRU(embedding_size, hidden_size, num_layers=1, batch_first=True, bidirectional=True)
+        self.gru = nn.LSTM(embedding_size, hidden_size, dropout=dropout_rate, num_layers=1, batch_first=True, bidirectional=True, proj_size=hidden_size//2)
         self.attn = nn.Sequential(
-            nn.Linear(2 * hidden_size, hidden_size),
-            nn.Tanh(),
             nn.Linear(hidden_size, 1),
             nn.Tanh()
         )
+        self.cls_token = torch.rand(size=(1, embedding_size), requires_grad=True)
 
     def forward(self, batch):
         inputs = batch['indices']
         trans_pos_indices = batch['trans_pos_indices']
         embed_output = self.embedding(inputs)
+        bs = inputs.size()[0]
         # print(embed_output)
         attn_mask = trans_pos_indices == 0
         trans_lens = (~attn_mask).sum(dim=1).cpu()
         embed_output = torch.mean(embed_output, dim=2, keepdim=True).squeeze(2)
+        embed_output = torch.cat((self.cls_token.repeat(bs, 1).unsqueeze(1), embed_output), dim=1)
         pck_seq = torch.nn.utils.rnn.pack_padded_sequence(embed_output, trans_lens, batch_first=True,
                                                           enforce_sorted=False)
         output_pckd, hidden = self.gru(pck_seq)
@@ -144,7 +146,7 @@ class GRUAttention(nn.Module):
         # attn_weights = attn_mask.unsqueeze(2) * attn_weights
         attn_scores = F.softmax(attn_weights_masked, 1)
         out = torch.bmm(output.transpose(1, 2), attn_scores).squeeze(2)
-        return out, attn_scores.squeeze(2)
+        return out, attn_scores.squeeze(2), None
 
 
 class HAN(nn.Module):

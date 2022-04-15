@@ -38,8 +38,8 @@ class TrainModel:
         if self.args.attention == 'baseline':
             encoder = EncoderRNN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
                                  self.args.dropout)
-        elif self.args.attention == 'gru_attention':
-            encoder = GRUAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
+        elif self.args.attention == 'lstm':
+            encoder = LSTMAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
                                    self.args.dropout)
         elif self.args.attention == 'han':
             encoder = HAN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix, self.args.dropout)

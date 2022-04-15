@@ -29,13 +29,17 @@ from tokenizers import BertWordPieceTokenizer
 import numpy as np
 import torch
 import pandas as pd
+from pathlib import Path
+
 import time
 seed = 1000
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 
-path_to_handscored_p = 'ScoringDetail_viw_all_subscore.p' 
+path_to_handscored_p = 'ScoringDetail_viw_all_subscore.p'
+dataset_dir = "datasets/"
+
 word_embedding_pt = dict(glove='../word_embeddings/glove_word_vectors',
                          w2v='../word_embeddings/custom_w2v_100d',
                          fasttext='../word_embeddings/fasttext_300d.bin')
@@ -203,7 +207,7 @@ def predict_scores(trainer, dataloader_transcripts_test):
     print('Test Metrics for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, loss=args.loss)
     plot_roc(scoring_criteria, pred_df, args.save_path + 'fold_'+ str(trainer.fold) +'_auc.png')
-    pred_df.to_pickle(args.save_path+'fold_'+ str(trainer.fold)+'_call_score_test.p')
+    pred_df.to_pickle(args.save_path+'fold_' + str(trainer.fold)+'_call_score_test.p')
     return metrics
 
 
@@ -226,6 +230,32 @@ def get_max_len(df):
     return max_trans_len, max_sent_len
 
 
+def get_dataset(type, dataset_dir, df, scoring_criteria):
+    if type == 'train':
+        if args.use_feedback:
+            path = dataset_dir + 'train_fbck'
+        else:
+            path = dataset_dir + 'train'
+
+    elif type == 'dev':
+        path = dataset_dir + 'dev'
+    else:
+        path = dataset_dir + 'test'
+
+    if Path(path).is_file():
+        with open(path, 'rb') as f:
+            ds = pickle.load(f)
+    else:
+        if args.use_feedback:
+            ds = CallDatasetWithFbk(df, scoring_criteria)
+        else:
+            ds = CallDataset(df, scoring_criteria)
+
+        with open(path, 'wb') as f:
+            pickle.dump(ds, f)
+    return ds
+
+
 def run_cross_validation(train_df, test_df):
     # kf = KFold(n_splits=2, shuffle=True)
     kf = ShuffleSplit(n_splits=1, test_size=0.15, random_state=seed)
@@ -239,13 +269,11 @@ def run_cross_validation(train_df, test_df):
         subscore_dist = t_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
         print("Subscore distribution count in Training set\n", subscore_dist)
         subscore_dist = dev_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
-        print("Subscore distribution count in Dev set\n", subscore_dist)        
-        if args.use_feedback:
-            dataset_transcripts_train = CallDatasetWithFbk(t_df, scoring_criteria)
-        else:
-            dataset_transcripts_train = CallDataset(t_df, scoring_criteria)
-        dataset_transcripts_dev = CallDataset(dev_df, scoring_criteria)
-        dataset_transcripts_test = CallDataset(test_df, scoring_criteria)
+        print("Subscore distribution count in Dev set\n", subscore_dist)
+
+        dataset_transcripts_train = get_dataset('train', dataset_dir, t_df, scoring_criteria)
+        dataset_transcripts_dev = get_dataset('dev', dataset_dir, t_df, scoring_criteria)
+        dataset_transcripts_test = get_dataset('test', dataset_dir, t_df, scoring_criteria)
 
         # max_trans_len, max_sent_len = get_max_len(train_df)
         max_trans_len, max_sent_len = 512, 128

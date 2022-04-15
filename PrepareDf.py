@@ -64,6 +64,7 @@ def prepare_trancript_score_df(score_df, q_text, transcripts_dir):
     print("Number of Calls = {}".format(len(df)))
     return df
 
+
 def prepare_inference_df(transcripts_dir):
     df = pd.DataFrame()
     for file in os.listdir(transcripts_dir):
