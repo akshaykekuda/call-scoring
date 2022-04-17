@@ -272,8 +272,8 @@ def run_cross_validation(train_df, test_df):
         print("Subscore distribution count in Dev set\n", subscore_dist)
 
         dataset_transcripts_train = get_dataset('train', dataset_dir, t_df, scoring_criteria)
-        dataset_transcripts_dev = get_dataset('dev', dataset_dir, t_df, scoring_criteria)
-        dataset_transcripts_test = get_dataset('test', dataset_dir, t_df, scoring_criteria)
+        dataset_transcripts_dev = get_dataset('dev', dataset_dir, dev_df, scoring_criteria)
+        dataset_transcripts_test = get_dataset('test', dataset_dir, test_df, scoring_criteria)
 
         # max_trans_len, max_sent_len = get_max_len(train_df)
         max_trans_len, max_sent_len = 512, 128

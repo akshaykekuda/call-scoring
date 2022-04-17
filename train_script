@@ -4,24 +4,24 @@ source activate call_scoring
 
 env_pt=$CONDA_PREFIX
 export LD_PRELOAD=${env_pt}'/lib/libiomp5.so'
-export OMP_NUM_THREADS=8
+export OMP_NUM_THREADS=12
 export KMP_AFFINITY=granularity=fine,proclist=[0-15],explicit
 
-MSG="HS2AN with customer channel: csr only"    
+MSG="HS2AN with CSR channel"    
 
-SAVE_DIR='logs/ak_3.7_8/'
+SAVE_DIR='logs/ak_3.8_05/'
 MODEL='BestSubScores'
 BS=4
 EP=20
 TRAIN_SAMPLES=0
 ATTENTION='hs2an'
-TRANSCRIPTS_PATH='transcriptions/customer_ch/train_csr_ch/'
-TEST_TRANSCRIPTS_PATH='transcriptions/customer_ch/test_csr_ch/'
+TRANSCRIPTS_PATH='transcriptions/csr_ch/train/'
+TEST_TRANSCRIPTS_PATH='transcriptions/csr_ch/test/'
 LOSS_FN='cel'
 DIM=128
 DP=0.7
-WORD_NH=4
-SENT_NH=2
+WORD_NH=1
+SENT_NH=1
 LR=1e-4
 K=25
 NUM_WORKERS=1

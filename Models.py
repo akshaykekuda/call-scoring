@@ -123,15 +123,15 @@ class LSTMAttention(nn.Module):
             nn.Linear(hidden_size, 1),
             nn.Tanh()
         )
-        self.cls_token = torch.rand(size=(1, embedding_size), requires_grad=True)
+        self.cls_token = torch.rand(size=(1, embedding_size), requires_grad=True, device=device)
 
     def forward(self, batch):
         inputs = batch['indices']
-        trans_pos_indices = batch['trans_pos_indices']
+        sent_pos_indices = batch['sent_pos_indices']
         embed_output = self.embedding(inputs)
         bs = inputs.size()[0]
         # print(embed_output)
-        attn_mask = trans_pos_indices == 0
+        attn_mask = sent_pos_indices == 0
         trans_lens = (~attn_mask).sum(dim=1).cpu()
         embed_output = torch.mean(embed_output, dim=2, keepdim=True).squeeze(2)
         embed_output = torch.cat((self.cls_token.repeat(bs, 1).unsqueeze(1), embed_output), dim=1)
@@ -157,10 +157,10 @@ class HAN(nn.Module):
 
     def forward(self, batch):
         inputs = batch['indices']
-        trans_pos_indices = batch['trans_pos_indices']
+        sent_pos_indices = batch['sent_pos_indices']
         word_pos_indices = batch['word_pos_indices']
         att1 = self.word_attention.forward(inputs, word_pos_indices)
-        att2, sentence_att_scores = self.sentence_attention.forward(att1, trans_pos_indices)
+        att2, sentence_att_scores = self.sentence_attention.forward(att1, sent_pos_indices)
         return att2, sentence_att_scores
 
 
@@ -172,7 +172,7 @@ class SentenceAttention(nn.Module):
             nn.Linear(hidden_size, 1),
             nn.Tanh()
         )
-        self.cls_token = torch.rand(size=(1, sentence_embedding_size), requires_grad=True)
+        self.cls_token = torch.rand(size=(1, sentence_embedding_size), requires_grad=True, device=device)
 
     def forward(self, inputs, positional_indices):
         bs = inputs.size()[0]
@@ -235,10 +235,10 @@ class HSAN(nn.Module):
 
     def forward(self, batch):
         inputs = batch['indices']
-        trans_pos_indices = batch['trans_pos_indices']
+        sent_pos_indices = batch['sent_pos_indices']
         word_pos_indices = batch['word_pos_indices']
         att1 = self.word_attention.forward(inputs, word_pos_indices)
-        att2, sentence_att_scores = self.sentence_self_attention.forward(att1, trans_pos_indices)
+        att2, sentence_att_scores = self.sentence_self_attention.forward(att1, sent_pos_indices)
         return att2, sentence_att_scores
 
 
@@ -253,11 +253,11 @@ class HSAN1(nn.Module):
 
     def forward(self, batch):
         inputs = batch['indices']
-        trans_pos_indices = batch['trans_pos_indices']
+        sent_pos_indices = batch['sent_pos_indices']
         word_pos_indices = batch['word_pos_indices']
         att1 = self.word_self_attention.forward(inputs, word_pos_indices)
         # att1 = self.layerNorm(att1)
-        att2, sentence_att_scores,  = self.sentence_attention.forward(att1, trans_pos_indices)
+        att2, sentence_att_scores,  = self.sentence_attention.forward(att1, sent_pos_indices)
         # print(sentence_att_scores.shape)
         return att2, sentence_att_scores, None
 
@@ -274,12 +274,12 @@ class HS2AN(nn.Module):
 
     def forward(self, batch):
         inputs = batch['indices']
-        trans_pos_indices = batch['trans_pos_indices']
+        sent_pos_indices = batch['sent_pos_indices']
         word_pos_indices = batch['word_pos_indices']
         att1 = self.word_self_attention.forward(inputs, word_pos_indices)
         # att1 = self.layerNorm(att1)
         att1 = self.ffn(att1)
-        att2, sentence_att_scores, value = self.sentence_self_attention.forward(att1, trans_pos_indices)
+        att2, sentence_att_scores, value = self.sentence_self_attention.forward(att1, sent_pos_indices)
         # print(sentence_att_scores.shape)
         return att2, sentence_att_scores, value
 
@@ -291,7 +291,7 @@ class SentenceSelfAttention(nn.Module):
         # self.multihead_attn = CustomMultiHeadAttention(embed_dim, num_heads, dropout=dropout_rate, batch_first=True)
         self.position_encoding = nn.Embedding(max_trans_len, model_size, padding_idx=0)
         self.num_layers = num_layers
-        self.cls_token = torch.rand(size=(1, model_size), requires_grad=True)
+        self.cls_token = torch.rand(size=(1, model_size), requires_grad=True, device=device)
 
     def forward(self, inputs, positional_indices):
         bs = inputs.size()[0]
