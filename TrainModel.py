@@ -17,6 +17,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 import torch.optim as optim
 import time
 
+
 class TrainModel:
     def __init__(self, dataloader_train, dataloader_dev, vocab_size, vec_size, weights_matrix, args, max_trans_len,
                  max_sent_len, scoring_criteria, fold):

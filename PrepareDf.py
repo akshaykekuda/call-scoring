@@ -54,8 +54,8 @@ def prepare_score_df(path_to_p, workgroup):
 
 
 def prepare_trancript_score_df(score_df, q_text, transcripts_dir):
-    df = pd.DataFrame(columns=['text'])
-    df['text'] = df['text'].astype('object')
+    ids = []
+    text_arr = []
     for file in tqdm(os.listdir(transcripts_dir)):
         if file.endswith('.txt'):
             file_loc = transcripts_dir + file
@@ -64,9 +64,10 @@ def prepare_trancript_score_df(score_df, q_text, transcripts_dir):
                 clean_text = preprocess_transcript(file_loc)
                 if len(clean_text) == 0:
                     continue
-                df.loc[id, score_df.columns] = score_df.loc[id]
-                df.loc[id, 'file_name'] = file_loc
-                df.at[id, 'text'] = clean_text
+                ids.append(id)
+                text_arr.append(clean_text)
+    df = score_df.loc[ids]
+    df['text'] = text_arr
     df.loc[:, q_text] = df.loc[:, q_text].astype(int)
     print("Number of Calls = {}".format(len(df)))
     return df
