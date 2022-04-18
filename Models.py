@@ -83,7 +83,6 @@ class EncoderRNN(nn.Module):
         output = output[:, -1, :]
         return output, None
 
-"""
 
 class LSTMAttention(nn.Module):
     def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate):
@@ -92,33 +91,8 @@ class LSTMAttention(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
         self.embedding.load_state_dict({'weight': weights_matrix})
         self.hidden_size = hidden_size
-        self.lstm = nn.LSTM(embedding_size, hidden_size, num_layers=1, batch_first=True, bidirectional=True)
-
-        self.attn = nn.Sequential(
-            nn.Linear(2 * hidden_size, hidden_size),
-            nn.Tanh(),
-            nn.Linear(hidden_size, 1),
-            nn.Tanh()
-        )
-
-    def forward(self, inputs, *_):
-        embed_output = self.embedding(inputs)
-        embed_output = torch.mean(embed_output, dim=2, keepdim=True).squeeze(2)
-        output, hidden = self.lstm(embed_output)
-        attn_weights = self.attn(output)
-        attn_scores = F.softmax(attn_weights, 1)
-        out = torch.bmm(output.transpose(1, 2), attn_scores).squeeze(2)
-        return out, attn_scores.squeeze(2)
-"""
-
-class LSTMAttention(nn.Module):
-    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate):
-        super(LSTMAttention, self).__init__()
-
-        self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
-        self.embedding.load_state_dict({'weight': weights_matrix})
-        self.hidden_size = hidden_size
-        self.gru = nn.LSTM(embedding_size, hidden_size, dropout=dropout_rate, num_layers=1, batch_first=True, bidirectional=True, proj_size=hidden_size//2)
+        self.gru = nn.LSTM(embedding_size, hidden_size, dropout=dropout_rate, num_layers=1, batch_first=True,
+                           bidirectional=True, proj_size=hidden_size // 2)
         self.attn = nn.Sequential(
             nn.Linear(hidden_size, 1),
             nn.Tanh()
@@ -149,11 +123,49 @@ class LSTMAttention(nn.Module):
         return out, attn_scores.squeeze(2), None
 
 
+class GRUAttention(nn.Module):
+    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate):
+        super(GRUAttention, self).__init__()
+
+        self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
+        self.embedding.load_state_dict({'weight': weights_matrix})
+        self.hidden_size = hidden_size
+        self.gru = nn.GRU(embedding_size, hidden_size, num_layers=1, batch_first=True, bidirectional=True)
+        self.attn = nn.Sequential(
+            nn.Linear(2 * hidden_size, hidden_size),
+            nn.Tanh(),
+            nn.Linear(hidden_size, 1),
+            nn.Tanh()
+        )
+
+    def forward(self, batch):
+        inputs = batch['indices']
+        sent_pos_indices = batch['sent_pos_indices']
+        embed_output = self.embedding(inputs)
+        # print(embed_output)
+        attn_mask = sent_pos_indices == 0
+        trans_lens = (~attn_mask).sum(dim=1).cpu()
+        embed_output = torch.mean(embed_output, dim=2, keepdim=True).squeeze(2)
+        print(embed_output.shape, trans_lens.shape)
+        pck_seq = torch.nn.utils.rnn.pack_padded_sequence(embed_output, trans_lens, batch_first=True,
+                                                          enforce_sorted=False)
+        output_pckd, hidden = self.gru(pck_seq)
+        output, trans_lens = torch.nn.utils.rnn.pad_packed_sequence(output_pckd, batch_first=True, padding_value=0)
+        # output, hidden = self.gru(embed_output)
+        attn_weights = self.attn(output)
+        ## mask weights
+        attn_weights_masked = attn_weights.masked_fill(attn_mask.unsqueeze(2), value=-np.inf)
+        # attn_weights = attn_mask.unsqueeze(2) * attn_weights
+        attn_scores = F.softmax(attn_weights_masked, 1)
+        out = torch.bmm(output.transpose(1, 2), attn_scores).squeeze(2)
+        return out, attn_scores.squeeze(2), None
+
+
 class HAN(nn.Module):
     def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate):
         super(HAN, self).__init__()
         self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
-        self.sentence_attention = SentenceAttention(2 * hidden_size, hidden_size)
+        self.sentence_attention = SentenceAttention(hidden_size, hidden_size)
 
     def forward(self, batch):
         inputs = batch['indices']
@@ -161,13 +173,14 @@ class HAN(nn.Module):
         word_pos_indices = batch['word_pos_indices']
         att1 = self.word_attention.forward(inputs, word_pos_indices)
         att2, sentence_att_scores = self.sentence_attention.forward(att1, sent_pos_indices)
-        return att2, sentence_att_scores
+        return att2, sentence_att_scores, None
 
 
 class SentenceAttention(nn.Module):
     def __init__(self, sentence_embedding_size, hidden_size):
         super(SentenceAttention, self).__init__()
-        self.lstm = nn.LSTM(sentence_embedding_size, hidden_size, batch_first=True, bidirectional=True, proj_size=hidden_size//2)
+        self.lstm = nn.LSTM(sentence_embedding_size, hidden_size, batch_first=True, bidirectional=True,
+                            proj_size=hidden_size // 2)
         self.attn = nn.Sequential(
             nn.Linear(hidden_size, 1),
             nn.Tanh()
@@ -187,7 +200,7 @@ class SentenceAttention(nn.Module):
         attn_weights_masked = attn_weights.masked_fill(padding_mask.unsqueeze(2), value=-np.inf)
         attn_scores = F.softmax(attn_weights_masked, 1)
         out = torch.bmm(output.transpose(1, 2), attn_scores).squeeze(2)
-        return out, attn_scores.squeeze(2),
+        return out, attn_scores.squeeze(2)
 
 
 class WordAttention(nn.Module):
@@ -197,10 +210,9 @@ class WordAttention(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
         self.embedding.load_state_dict({'weight': weights_matrix})
         self.hidden_size = hidden_size
-        self.lstm = nn.LSTM(embedding_size, hidden_size, batch_first=True, bidirectional=True)
+        self.lstm = nn.LSTM(embedding_size, hidden_size, batch_first=True, bidirectional=True,
+                            proj_size=hidden_size // 2)
         self.attn = nn.Sequential(
-            nn.Linear(2 * hidden_size, hidden_size),
-            nn.Tanh(),
             nn.Linear(hidden_size, 1),
             nn.Tanh()
         )
@@ -228,18 +240,19 @@ class WordAttention(nn.Module):
 
 class HSAN(nn.Module):
     def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, max_trans_len,
-                 max_sent_len, num_heads, dropout_rate):
+                 max_sent_len, num_heads, dropout_rate, num_layers):
         super(HSAN, self).__init__()
         self.word_attention = WordAttention(vocab_size, embedding_size, hidden_size, weights_matrix)
-        self.sentence_self_attention = SentenceSelfAttention(hidden_size, num_heads, max_trans_len, dropout_rate)
+        self.sentence_self_attention = SentenceSelfAttention(hidden_size, num_heads, max_trans_len, dropout_rate,
+                                                             num_layers)
 
     def forward(self, batch):
         inputs = batch['indices']
         sent_pos_indices = batch['sent_pos_indices']
         word_pos_indices = batch['word_pos_indices']
         att1 = self.word_attention.forward(inputs, word_pos_indices)
-        att2, sentence_att_scores = self.sentence_self_attention.forward(att1, sent_pos_indices)
-        return att2, sentence_att_scores
+        att2, sentence_att_scores, _ = self.sentence_self_attention.forward(att1, sent_pos_indices)
+        return att2, sentence_att_scores, None
 
 
 class HSAN1(nn.Module):
@@ -257,9 +270,47 @@ class HSAN1(nn.Module):
         word_pos_indices = batch['word_pos_indices']
         att1 = self.word_self_attention.forward(inputs, word_pos_indices)
         # att1 = self.layerNorm(att1)
-        att2, sentence_att_scores,  = self.sentence_attention.forward(att1, sent_pos_indices)
+        att2, sentence_att_scores, = self.sentence_attention.forward(att1, sent_pos_indices)
         # print(sentence_att_scores.shape)
         return att2, sentence_att_scores, None
+
+
+class WordTransformerAttention(nn.Module):
+
+    def __init__(self, vocab_size, embedding_size, model_size, weights_matrix,
+                 max_sent_len, word_nh, dropout_rate, word_num_layers):
+        super(WordTransformerAttention, self).__init__()
+        self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
+                                                     max_sent_len, word_nh, dropout_rate, word_num_layers)
+
+    def forward(self, batch):
+        inputs = batch['indices']
+        bs = len(inputs)
+        word_pos_indices = batch['word_pos_indices']
+        att1 = self.word_self_attention.forward(inputs, word_pos_indices)
+        # att1 = self.layerNorm(att1)
+        output = att1.mean(dim=1)
+        scores = torch.zeros(bs)
+        # print(sentence_att_scores.shape)
+        return output, scores, None
+
+
+class SentTransformerAttention(nn.Module):
+
+    def __init__(self, vocab_size, embedding_size, model_size, sent_nh, max_trans_len, dropout_rate, num_layers):
+        super(SentTransformerAttention, self).__init__()
+        self.sentence_self_attention = SentenceSelfAttention(model_size, sent_nh, max_trans_len, dropout_rate,
+                                                             num_layers)
+        self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
+
+    def forward(self, batch):
+        inputs = batch['indices']
+        bs = len(inputs)
+        sent_pos_indices = batch['sent_pos_indices']
+        embed_output = self.embedding(inputs)
+        embed_output = torch.mean(embed_output, dim=2, keepdim=True).squeeze(2)
+        att1, sentence_att_scores, value = self.sentence_self_attention.forward(embed_output, sent_pos_indices)
+        return att1, sentence_att_scores, value
 
 
 class HS2AN(nn.Module):
@@ -268,7 +319,8 @@ class HS2AN(nn.Module):
         super(HS2AN, self).__init__()
         self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
                                                      max_sent_len, word_nh, dropout_rate, word_num_layers)
-        self.sentence_self_attention = SentenceSelfAttention(model_size, sent_nh, max_trans_len, dropout_rate, num_layers)
+        self.sentence_self_attention = SentenceSelfAttention(model_size, sent_nh, max_trans_len, dropout_rate,
+                                                             num_layers)
         self.layerNorm = nn.LayerNorm(model_size)
         self.ffn = nn.Linear(embedding_size, model_size)
 
@@ -309,21 +361,23 @@ class SentenceSelfAttention(nn.Module):
         # attn_output = torch.cat((attn_output[:, 0, :], attn_output_inter, attn_output[:, -1, :]), dim=-1)
         attn_output = attn_output[:, 0, :]
         # attn_output = torch.mean(attn_output, dim=1, keepdim=False)
-        
+
         return attn_output, attn_output_weights.squeeze(2), value
 
 
 class WordSelfAttention(nn.Module):
-    def __init__(self, vocab_size, embedding_size, out_dim, weights_matrix, max_sent_len, num_heads, dropout_rate, num_layers):
+    def __init__(self, vocab_size, embedding_size, out_dim, weights_matrix, max_sent_len, num_heads, dropout_rate,
+                 num_layers):
         super(WordSelfAttention, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
         self.embedding.load_state_dict({'weight': weights_matrix})
-        self.multihead_attn = nn.MultiheadAttention(embedding_size, dropout=dropout_rate, num_heads=num_heads, batch_first=True)
+        self.multihead_attn = nn.MultiheadAttention(embedding_size, dropout=dropout_rate, num_heads=num_heads,
+                                                    batch_first=True)
         # self.multihead_attn = CustomMultiHeadAttention(embedding_size, dropout=dropout_rate, num_heads=num_heads, batch_first=True)
 
         self.ffn = nn.Linear(embedding_size, out_dim)
         self.position_encoding = nn.Embedding(max_sent_len, embedding_size, padding_idx=0)
-        self.num_layers=num_layers
+        self.num_layers = num_layers
 
     def forward(self, inputs, positional_indices):
         embed_output = self.embedding(inputs)
@@ -375,6 +429,7 @@ class MLMNetwork(nn.Module):
         masked_out = attn_out[masked_indices]
         out = self.fcn(masked_out)
         return out
+
 
 
 class PretrainDoc2Vec(nn.Module):

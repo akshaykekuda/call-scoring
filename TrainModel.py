@@ -36,26 +36,42 @@ class TrainModel:
         raise "To be Implemented"
 
     def get_model(self):
-        if self.args.attention == 'baseline':
+        if self.args.model == 'baseline':
+            print("running baseline")
             encoder = EncoderRNN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
                                  self.args.dropout)
-        elif self.args.attention == 'lstm':
-            encoder = LSTMAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
+        elif self.args.model == 'gru_attention':
+            print("running gru+attention")
+            encoder = GRUAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
                                    self.args.dropout)
-        elif self.args.attention == 'han':
+        elif self.args.model == 'han':
+            print("running Hierarchical Attention Network")
             encoder = HAN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix, self.args.dropout)
-        elif self.args.attention == 'hsan':
+        elif self.args.model == 'hsan':
+            print("running Hierarchical Self Attention Network")
             encoder = HSAN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                           self.max_trans_len, self.max_sent_len, self.args.num_heads, self.args.dropout)
-        elif self.args.attention == 'hsan1':
-            encoder = HSAN1(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                           self.max_sent_len, self.args.word_nh, self.args.dropout, self.args.num_layers, 
-                           self.args.word_nlayers)
-        elif self.args.attention == 'hs2an':
+                           self.max_trans_len, self.max_sent_len, self.args.sent_nh, self.args.dropout,
+                           self.args.num_layers)
+        elif self.args.model == 'hs2an':
+            print("running Hierarchical Self-Self Attention Network")
             encoder = HS2AN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                            self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh, self.args.dropout, self.args.num_layers,
+                            self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh,
+                            self.args.dropout, self.args.num_layers,
                             self.args.word_nlayers)
-        elif self.args.attention == 'doc2vec':
+        elif self.args.model == 'lstm':
+            print("running LSTM Self Attention Network")
+            encoder = LSTMAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
+                                    self.args.dropout)
+        elif self.args.model == 'wtsan':
+            print("running Word Transformer Self Attn model")
+            encoder = WordTransformerAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix, self.max_sent_len,
+                                               self.args.word_nh, self.args.dropout, self.args.word_nlayers)
+        elif self.args.model == 'stsan':
+            print("running Sent Transformer Self Attn Model")
+            encoder = SentTransformerAttention(self.vocab_size, self.vec_size, self.args.model_size, self.args.sent_nh, self.max_sent_len,
+                                               self.args.dropout, self.args.num_layers)
+        elif self.args.model == 'doc2vec':
+            print('running Doc2Vec model')
             encoder = PretrainDoc2Vec(self.args.doc2vec_pt)
 
         else:

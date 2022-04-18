@@ -57,13 +57,13 @@ def _parse_args():
     parser = argparse.ArgumentParser(description='MainCalls.py')
 
     # General system running and configuration options
-    parser.add_argument('--model', type=str, default='AllSubScores', help='model to run')
+    parser.add_argument('--subscore', type=str, default='all', help='model to run')
     parser.add_argument('--workgroup', type=str, default='all', help='workgroup of calls to score')
     parser.add_argument('--batch_size', type=int, default=4, help='batch_size')
     parser.add_argument('--epochs', type=int, default=1, help='epochs to run')
     parser.add_argument('--train_samples', type=int, default=50, help='number of samples for training')
     parser.add_argument('--word_embedding', type=str, default='glove', help='word embedding to use')
-    parser.add_argument('--attention', type=str, default='hs2an', help='attention mechanism to use')
+    parser.add_argument('--model', type=str, default='hs2an', help='attention mechanism to use')
     parser.add_argument('--save_path', type=str, default='logs/test/', help='path to save checkpoints')
     parser.add_argument('--word_nh', type=int, default=1, help='number of attention heads for word attn')
     parser.add_argument('--sent_nh', type=int, default=1, help='number of attention heads for sent attn')
@@ -308,22 +308,6 @@ def run_cross_validation(train_df, test_df):
             metrics = predict_scores_mtl(trainer, dataloader_transcripts_test)
         else:
             metrics = predict_scores(trainer, dataloader_transcripts_test)
-        """    
-        if args.model == 'Category':
-            metrics = predict_overall_category(trainer, dataloader_transcripts_test)
-        elif args.model == 'CombinedPercentileScore':
-            metrics = predict_overall_score(trainer, dataloader_transcripts_test)
-        elif args.model == 'AllSubScores':
-            metrics = predict_all_subscores(trainer, dataloader_transcripts_test)
-        elif args.model == 'Cross_Selling':
-            metrics = predict_cross_selling(trainer, dataloader_transcripts_test)
-        elif args.model == 'Product_Knowledge':
-            metrics = predict_product_knowledge(trainer, dataloader_transcripts_test)
-        elif args.model == 'MultiTask':
-            metrics = predict_scores_mtl(trainer, dataloader_transcripts_test)
-        else:
-            raise ValueError("Invalid Model Argument")
-        """
         fold+=1
         kfold_results.append(metrics)
     return kfold_results
@@ -417,12 +401,12 @@ if __name__ == "__main__":
             with open(test_ds_path, 'rb') as f:
                 test_df = pickle.load(f)
 
-        if args.model == 'AllSubScores':
+        if args.subscore == 'all':
             scoring_criteria = sub_score_categories
-        elif args.model == 'BestSubScores':
+        elif args.subscore == 'best':
             scoring_criteria = sub_score_categories[:4]
         else:
-            scoring_criteria = [args.model]
+            scoring_criteria = [args.subscore]
         if args.use_feedback:
             comment_obj = FeedbackComments(train_df, args.k)
             top_k_comments = comment_obj.extract_top_k_comments(scoring_criteria)
