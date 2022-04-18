@@ -15,7 +15,7 @@ from Inference_fns import val_get_metrics, get_mlm_metrics
 from sklearn.utils import class_weight
 from torch.optim.lr_scheduler import MultiStepLR
 import torch.optim as optim
-
+import time
 
 class TrainModel:
     def __init__(self, dataloader_train, dataloader_dev, vocab_size, vec_size, weights_matrix, args, max_trans_len,
@@ -204,7 +204,9 @@ class TrainModel:
         best_val_error = float("inf")
         for n in range(epochs):
             epoch_loss = 0
-            for idx, batch in enumerate(tqdm(self.dataloader_train)):
+            print("Start of epoch {}".format(n))
+            start_time = time.time()
+            for idx, batch in enumerate((self.dataloader_train)):
                 loss = 0
                 outputs, scores, _ = model(batch)
                 targets = self.get_score_target(batch)
@@ -221,6 +223,9 @@ class TrainModel:
                     model_optimizer.step()
                     model_optimizer.zero_grad()
             # scheduler.step()
+            end_time = time.time()
+            print("End of epoch {} with {} training time".format(n, end_time-start_time))
+
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
             loss_arr.append(avg_epoch_loss)
             print("start of val on train set")
@@ -277,7 +282,7 @@ class TrainModel:
         print(model_optimizer)
         for n in range(epochs):
             epoch_loss = 0
-            for batch in tqdm(self.dataloader_train):
+            for batch in (self.dataloader_train):
                 loss = 0
                 outputs, scores, _ = mtl_model(batch)
                 targets = [self.get_score_target(batch)]

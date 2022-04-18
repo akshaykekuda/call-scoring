@@ -78,6 +78,7 @@ def _parse_args():
     parser.add_argument('--num_workers', type=int, default=0, help='number of workers for the dataset')
     parser.add_argument("--save_model", default=False, action="store_true")
     parser.add_argument("--use_feedback", default=False, action="store_true")
+    parser.add_argument("--new_data", default=False, action="store_true")
     parser.add_argument("--num_layers", default=1, type=int, help="num of layers of sentence level self attention")
     parser.add_argument("--word_nlayers", default=1, type=int, help="num of layers of word level self attention")
     parser.add_argument("--reg", default=1e-5, type=float, help="l2 regularization")
@@ -193,6 +194,7 @@ def predict_scores(trainer, dataloader_transcripts_test):
     return metrics
 """
 
+
 def predict_scores(trainer, dataloader_transcripts_test):
     if args.loss == 'cel':
         model = trainer.train_cel_model()
@@ -271,13 +273,10 @@ def run_cross_validation(train_df, test_df):
         subscore_dist = dev_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
         print("Subscore distribution count in Dev set\n", subscore_dist)
 
-        dataset_transcripts_train = get_dataset('train', dataset_dir, t_df, scoring_criteria)
-        dataset_transcripts_dev = get_dataset('dev', dataset_dir, dev_df, scoring_criteria)
-        dataset_transcripts_test = get_dataset('test', dataset_dir, test_df, scoring_criteria)
-
-        # max_trans_len, max_sent_len = get_max_len(train_df)
+        dataset_transcripts_train = CallDataset(t_df, scoring_criteria)
+        dataset_transcripts_dev = CallDataset(dev_df, scoring_criteria)
+        dataset_transcripts_test = CallDataset(test_df, scoring_criteria)
         max_trans_len, max_sent_len = 512, 128
-
         vocab = dataset_transcripts_train.get_vocab()
         dataset_transcripts_train.save_vocab('vocab')
 
@@ -401,10 +400,23 @@ if __name__ == "__main__":
         tokenizer = BertTokenizerFast.from_pretrained(args.tok_path, add_special_tokens=True)
         run_cross_validation_mlm(tokenizer)
     else:
-        score_df, q_text = prepare_score_df(
-            path_to_handscored_p, workgroup=args.workgroup)
-        train_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
-        test_df = prepare_trancript_score_df(score_df, q_text, args.test_path)
+        train_ds_path = dataset_dir+'train'
+        test_ds_path = dataset_dir+'test'
+        if args.new_data:
+            score_df, q_text = prepare_score_df(
+                path_to_handscored_p, workgroup=args.workgroup)
+            train_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
+            with open(train_ds_path, 'wb') as f:
+                pickle.dump(train_df, f)
+            test_df = prepare_trancript_score_df(score_df, q_text, args.test_path)
+            with open(test_ds_path, 'wb') as f:
+                pickle.dump(test_df, f)
+        else:
+            with open(train_ds_path, 'rb') as f:
+                train_df = pickle.load(f)
+            with open(test_ds_path, 'rb') as f:
+                test_df = pickle.load(f)
+
         if args.model == 'AllSubScores':
             scoring_criteria = sub_score_categories
         elif args.model == 'BestSubScores':

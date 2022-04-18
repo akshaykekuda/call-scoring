@@ -74,5 +74,4 @@ class Collate:
         batch_dict['sent_pos_indices'] = torch.tensor(batch_dict['sent_pos_indices'], device=self.device)
         batch_dict['word_pos_indices'] = torch.tensor(batch_dict['word_pos_indices'], device=self.device)
         batch_dict['lens'] = trans_len
-
         return batch_dict

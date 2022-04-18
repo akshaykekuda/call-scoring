@@ -15,8 +15,6 @@ import torch
 from collections import Counter
 from torchtext.vocab import vocab
 from torchtext.data.utils import get_tokenizer
-import nltk
-from nltk.tokenize import sent_tokenize
 from Preprocessing import preprocess_transcript
 import pickle
 
@@ -38,14 +36,9 @@ class CallDataset(Dataset):
         self.fbk_str = [criterion + " fbk_vector" for criterion in scoring_criteria]
 
         word_tokenizer = get_tokenizer('basic_english')
-        clean_files = []
-        for f in df.file_name:
-            clean_files.append(preprocess_transcript(f))
-
         counter = Counter()
-
         # Build vocab from transcripts
-        for transcript in clean_files:
+        for transcript in df.text:
             for i in range(len(transcript)):
                 words = word_tokenizer(transcript[i])
                 counter.update(words)
@@ -55,7 +48,6 @@ class CallDataset(Dataset):
         self.vocab.insert_token('<pad>', 0)
         self.vocab.insert_token('<UNK>', 0)
         self.vocab.set_default_index(0)
-        self.df['text'] = clean_files
 
     def __len__(self):
         return len(self.df)

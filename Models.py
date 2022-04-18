@@ -376,6 +376,7 @@ class MLMNetwork(nn.Module):
         out = self.fcn(masked_out)
         return out
 
+
 class PretrainDoc2Vec(nn.Module):
     def __init__(self, model_pt) -> None:
         super().__init__()
