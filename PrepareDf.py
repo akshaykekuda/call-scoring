@@ -2,6 +2,8 @@ import pandas as pd
 import os
 import pickle5 as pickle
 import re
+from Preprocessing import preprocess_transcript
+from tqdm import tqdm
 
 def prepare_score_df(path_to_p, workgroup):
     with open(path_to_p, 'rb') as file:
@@ -52,17 +54,24 @@ def prepare_score_df(path_to_p, workgroup):
 
 
 def prepare_trancript_score_df(score_df, q_text, transcripts_dir):
-    df = pd.DataFrame()
-    for file in os.listdir(transcripts_dir):
+    ids = []
+    text_arr = []
+    for file in tqdm(os.listdir(transcripts_dir)):
         if file.endswith('.txt'):
             file_loc = transcripts_dir + file
             id = re.split("_|-|\.", file)[1]
             if id in score_df.index:
-                    df.loc[id, score_df.columns] = score_df.loc[id]
-                    df.loc[id, 'file_name'] = file_loc
+                clean_text = preprocess_transcript(file_loc)
+                if len(clean_text) == 0:
+                    continue
+                ids.append(id)
+                text_arr.append(clean_text)
+    df = score_df.loc[ids]
+    df['text'] = text_arr
     df.loc[:, q_text] = df.loc[:, q_text].astype(int)
     print("Number of Calls = {}".format(len(df)))
     return df
+
 
 def prepare_inference_df(transcripts_dir):
     df = pd.DataFrame()
@@ -71,8 +80,10 @@ def prepare_inference_df(transcripts_dir):
             file_loc = transcripts_dir + file
             id = re.split("_|-|\.", file)[1]
             df.loc[id, 'file_name'] = file_loc
+            df.loc[id, 'text'] = preprocess_transcript(file_loc)
     print("Number of Test Calls = {}".format(len(df)))
     return df
+
 
 def balance_df(df, num_samples):
     h = df[df.Category == 1].sample(n=num_samples//2)

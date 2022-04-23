@@ -37,16 +37,17 @@ def get_mlm_metrics(dataloader, model, tokenizer):
     target_arr = []
     pred_arr = []
     with torch.no_grad():
-        for item in tqdm(dataloader):
-            output = model(item)
-            labels = item['labels'][item['labels'] != -100]
+        for item in (dataloader):
+            output = model(item).flatten(0,1)
+            labels = item['labels'].flatten(0,1)
+            masked_indices =  labels!= -100
             if len(labels) == 0:
                 continue
             loss += criterion(output, labels).detach().item()
             pred_ids = torch.argmax(output, dim=-1)
             loss += criterion(output, labels)
-            target_arr.append(tokenizer.convert_ids_to_tokens(labels))
-            pred_arr.append(tokenizer.convert_ids_to_tokens(pred_ids))
+            target_arr.append(tokenizer.convert_ids_to_tokens(labels[masked_indices]))
+            pred_arr.append(tokenizer.convert_ids_to_tokens(pred_ids[masked_indices]))
     df = pd.DataFrame()
     df['Target Tokens'] = target_arr
     df['Pred Tokens'] = pred_arr
@@ -64,9 +65,8 @@ def val_get_metrics(dataloader, model, scoring_criterion, loss, loss_fn):
     thresh = 0.5
     val_loss = 0
     with torch.no_grad():
-        for batch in tqdm(dataloader):
-            outputs, scores, _ = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
-                                    batch['word_pos_indices'])
+        for batch in (dataloader):
+            outputs, scores, _ = model(batch)
             output = outputs[0]
             targets = get_score_target(batch, loss, scoring_criterion)
             l = 0
@@ -147,8 +147,7 @@ def get_metrics(dataloader, model, scoring_criterion, loss):
     thresh = 0.5
     with torch.no_grad():
         for batch in tqdm(dataloader):
-            outputs, scores, _ = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
-                                    batch['word_pos_indices'])
+            outputs, scores, _ = model(batch)
             output = outputs[0]
             target = [sample[scoring_criterion].tolist() for sample in batch['scores']]
             if loss == 'mse':

@@ -29,13 +29,17 @@ from tokenizers import BertWordPieceTokenizer
 import numpy as np
 import torch
 import pandas as pd
+from pathlib import Path
+
 import time
 seed = 1000
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 
-path_to_handscored_p = 'ScoringDetail_viw_all_subscore.p' 
+path_to_handscored_p = 'ScoringDetail_viw_all_subscore.p'
+dataset_dir = "datasets/"
+
 word_embedding_pt = dict(glove='../word_embeddings/glove_word_vectors',
                          w2v='../word_embeddings/custom_w2v_100d',
                          fasttext='../word_embeddings/fasttext_300d.bin')
@@ -53,13 +57,13 @@ def _parse_args():
     parser = argparse.ArgumentParser(description='MainCalls.py')
 
     # General system running and configuration options
-    parser.add_argument('--model', type=str, default='AllSubScores', help='model to run')
+    parser.add_argument('--subscore', type=str, default='all', help='model to run')
     parser.add_argument('--workgroup', type=str, default='all', help='workgroup of calls to score')
     parser.add_argument('--batch_size', type=int, default=4, help='batch_size')
     parser.add_argument('--epochs', type=int, default=1, help='epochs to run')
     parser.add_argument('--train_samples', type=int, default=50, help='number of samples for training')
     parser.add_argument('--word_embedding', type=str, default='glove', help='word embedding to use')
-    parser.add_argument('--attention', type=str, default='hs2an', help='attention mechanism to use')
+    parser.add_argument('--model', type=str, default='hs2an', help='attention mechanism to use')
     parser.add_argument('--save_path', type=str, default='logs/test/', help='path to save checkpoints')
     parser.add_argument('--word_nh', type=int, default=1, help='number of attention heads for word attn')
     parser.add_argument('--sent_nh', type=int, default=1, help='number of attention heads for sent attn')
@@ -74,11 +78,13 @@ def _parse_args():
     parser.add_argument('--num_workers', type=int, default=0, help='number of workers for the dataset')
     parser.add_argument("--save_model", default=False, action="store_true")
     parser.add_argument("--use_feedback", default=False, action="store_true")
+    parser.add_argument("--new_data", default=False, action="store_true")
     parser.add_argument("--num_layers", default=1, type=int, help="num of layers of sentence level self attention")
     parser.add_argument("--word_nlayers", default=1, type=int, help="num of layers of word level self attention")
     parser.add_argument("--reg", default=1e-5, type=float, help="l2 regularization")
     parser.add_argument("--acum_step", default=1, type=int, help="grad accumulation steps")
     parser.add_argument("--tok_path", default='sa_tokenizer/', type=str, help="path to trained tokenizer")
+    parser.add_argument("--doc2vec_pt", default='../word_embeddings/trained_doc2vec', type=str, help="path to trained doc2vec model")
 
     args = parser.parse_args()
     return args
@@ -188,6 +194,7 @@ def predict_scores(trainer, dataloader_transcripts_test):
     return metrics
 """
 
+
 def predict_scores(trainer, dataloader_transcripts_test):
     if args.loss == 'cel':
         model = trainer.train_cel_model()
@@ -202,7 +209,7 @@ def predict_scores(trainer, dataloader_transcripts_test):
     print('Test Metrics for Call Transcripts dataset  is:')
     metrics, pred_df = get_metrics(dataloader_transcripts_test, model, scoring_criteria, loss=args.loss)
     plot_roc(scoring_criteria, pred_df, args.save_path + 'fold_'+ str(trainer.fold) +'_auc.png')
-    pred_df.to_pickle(args.save_path+'fold_'+ str(trainer.fold)+'_call_score_test.p')
+    pred_df.to_pickle(args.save_path+'fold_' + str(trainer.fold)+'_call_score_test.p')
     return metrics
 
 
@@ -225,6 +232,32 @@ def get_max_len(df):
     return max_trans_len, max_sent_len
 
 
+def get_dataset(type, dataset_dir, df, scoring_criteria):
+    if type == 'train':
+        if args.use_feedback:
+            path = dataset_dir + 'train_fbck'
+        else:
+            path = dataset_dir + 'train'
+
+    elif type == 'dev':
+        path = dataset_dir + 'dev'
+    else:
+        path = dataset_dir + 'test'
+
+    if Path(path).is_file():
+        with open(path, 'rb') as f:
+            ds = pickle.load(f)
+    else:
+        if args.use_feedback:
+            ds = CallDatasetWithFbk(df, scoring_criteria)
+        else:
+            ds = CallDataset(df, scoring_criteria)
+
+        with open(path, 'wb') as f:
+            pickle.dump(ds, f)
+    return ds
+
+
 def run_cross_validation(train_df, test_df):
     # kf = KFold(n_splits=2, shuffle=True)
     kf = ShuffleSplit(n_splits=1, test_size=0.15, random_state=seed)
@@ -238,17 +271,12 @@ def run_cross_validation(train_df, test_df):
         subscore_dist = t_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
         print("Subscore distribution count in Training set\n", subscore_dist)
         subscore_dist = dev_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
-        print("Subscore distribution count in Dev set\n", subscore_dist)        
-        if args.use_feedback:
-            dataset_transcripts_train = CallDatasetWithFbk(t_df, scoring_criteria)
-        else:
-            dataset_transcripts_train = CallDataset(t_df, scoring_criteria)
+        print("Subscore distribution count in Dev set\n", subscore_dist)
+
+        dataset_transcripts_train = CallDataset(t_df, scoring_criteria)
         dataset_transcripts_dev = CallDataset(dev_df, scoring_criteria)
         dataset_transcripts_test = CallDataset(test_df, scoring_criteria)
-
-        # max_trans_len, max_sent_len = get_max_len(train_df)
         max_trans_len, max_sent_len = 512, 128
-
         vocab = dataset_transcripts_train.get_vocab()
         dataset_transcripts_train.save_vocab('vocab')
 
@@ -280,22 +308,6 @@ def run_cross_validation(train_df, test_df):
             metrics = predict_scores_mtl(trainer, dataloader_transcripts_test)
         else:
             metrics = predict_scores(trainer, dataloader_transcripts_test)
-        """    
-        if args.model == 'Category':
-            metrics = predict_overall_category(trainer, dataloader_transcripts_test)
-        elif args.model == 'CombinedPercentileScore':
-            metrics = predict_overall_score(trainer, dataloader_transcripts_test)
-        elif args.model == 'AllSubScores':
-            metrics = predict_all_subscores(trainer, dataloader_transcripts_test)
-        elif args.model == 'Cross_Selling':
-            metrics = predict_cross_selling(trainer, dataloader_transcripts_test)
-        elif args.model == 'Product_Knowledge':
-            metrics = predict_product_knowledge(trainer, dataloader_transcripts_test)
-        elif args.model == 'MultiTask':
-            metrics = predict_scores_mtl(trainer, dataloader_transcripts_test)
-        else:
-            raise ValueError("Invalid Model Argument")
-        """
         fold+=1
         kfold_results.append(metrics)
     return kfold_results
@@ -314,7 +326,8 @@ def run_cross_validation_mlm(tokenizer):
     train_size = int(0.8 * len(mlm_ds))
     test_size = len(mlm_ds) - train_size
     train_dataset, dev_dataset = random_split(mlm_ds, [train_size, test_size])
-    test_paths = [str(x) for x in Path(args.test_path).glob("**/*.txt")]
+    all_test_paths = [str(x) for x in Path(args.test_path).glob("**/*.txt")]
+    test_paths = random.sample(all_test_paths, args.train_samples//10)
     test_dataset = MLMDataSet(test_paths, tokenizer)
     collator = DataCollatorForLanguageModeling(tokenizer)
     dataloader_transcripts_train = DataLoader(train_dataset, batch_size=4, shuffle=True,
@@ -371,16 +384,29 @@ if __name__ == "__main__":
         tokenizer = BertTokenizerFast.from_pretrained(args.tok_path, add_special_tokens=True)
         run_cross_validation_mlm(tokenizer)
     else:
-        score_df, q_text = prepare_score_df(
-            path_to_handscored_p, workgroup=args.workgroup)
-        train_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
-        test_df = prepare_trancript_score_df(score_df, q_text, args.test_path)
-        if args.model == 'AllSubScores':
+        train_ds_path = dataset_dir+'train'
+        test_ds_path = dataset_dir+'test'
+        if args.new_data:
+            score_df, q_text = prepare_score_df(
+                path_to_handscored_p, workgroup=args.workgroup)
+            train_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
+            with open(train_ds_path, 'wb') as f:
+                pickle.dump(train_df, f)
+            test_df = prepare_trancript_score_df(score_df, q_text, args.test_path)
+            with open(test_ds_path, 'wb') as f:
+                pickle.dump(test_df, f)
+        else:
+            with open(train_ds_path, 'rb') as f:
+                train_df = pickle.load(f)
+            with open(test_ds_path, 'rb') as f:
+                test_df = pickle.load(f)
+
+        if args.subscore == 'all':
             scoring_criteria = sub_score_categories
-        elif args.model == 'BestSubScores':
+        elif args.subscore == 'best':
             scoring_criteria = sub_score_categories[:4]
         else:
-            scoring_criteria = [args.model]
+            scoring_criteria = [args.subscore]
         if args.use_feedback:
             comment_obj = FeedbackComments(train_df, args.k)
             top_k_comments = comment_obj.extract_top_k_comments(scoring_criteria)

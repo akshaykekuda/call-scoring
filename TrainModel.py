@@ -15,6 +15,7 @@ from Inference_fns import val_get_metrics, get_mlm_metrics
 from sklearn.utils import class_weight
 from torch.optim.lr_scheduler import MultiStepLR
 import torch.optim as optim
+import time
 
 
 class TrainModel:
@@ -35,25 +36,44 @@ class TrainModel:
         raise "To be Implemented"
 
     def get_model(self):
-        if self.args.attention == 'baseline':
+        if self.args.model == 'baseline':
+            print("running baseline")
             encoder = EncoderRNN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
                                  self.args.dropout)
-        elif self.args.attention == 'gru_attention':
+        elif self.args.model == 'gru_attention':
+            print("running gru+attention")
             encoder = GRUAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
                                    self.args.dropout)
-        elif self.args.attention == 'han':
+        elif self.args.model == 'han':
+            print("running Hierarchical Attention Network")
             encoder = HAN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix, self.args.dropout)
-        elif self.args.attention == 'hsan':
+        elif self.args.model == 'hsan':
+            print("running Hierarchical Self Attention Network")
             encoder = HSAN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                           self.max_trans_len, self.max_sent_len, self.args.num_heads, self.args.dropout)
-        elif self.args.attention == 'hsan1':
-            encoder = HSAN1(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                           self.max_sent_len, self.args.word_nh, self.args.dropout, self.args.num_layers, 
-                           self.args.word_nlayers)
-        elif self.args.attention == 'hs2an':
+                           self.max_trans_len, self.max_sent_len, self.args.sent_nh, self.args.dropout,
+                           self.args.num_layers)
+        elif self.args.model == 'hs2an':
+            print("running Hierarchical Self-Self Attention Network")
             encoder = HS2AN(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                            self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh, self.args.dropout, self.args.num_layers,
+                            self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh,
+                            self.args.dropout, self.args.num_layers,
                             self.args.word_nlayers)
+        elif self.args.model == 'lstm':
+            print("running LSTM Self Attention Network")
+            encoder = LSTMAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
+                                    self.args.dropout)
+        elif self.args.model == 'wtsan':
+            print("running Word Transformer Self Attn model")
+            encoder = WordTransformerAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix, self.max_sent_len,
+                                               self.args.word_nh, self.args.dropout, self.args.word_nlayers)
+        elif self.args.model == 'stsan':
+            print("running Sent Transformer Self Attn Model")
+            encoder = SentTransformerAttention(self.vocab_size, self.vec_size, self.args.model_size, self.args.sent_nh, self.max_trans_len,
+                                               self.args.dropout, self.args.num_layers)
+        elif self.args.model == 'doc2vec':
+            print('running Doc2Vec model')
+            encoder = PretrainDoc2Vec(self.args.doc2vec_pt)
+
         else:
             raise ValueError("Invalid Attention Model argument")
 
@@ -198,13 +218,14 @@ class TrainModel:
         print(model_optimizer)
         train_loss = []
         val_loss = []
-        best_val_error = float('inf')
+        best_val_error = float("inf")
         for n in range(epochs):
             epoch_loss = 0
-            for idx, batch in enumerate(tqdm(self.dataloader_train)):
+            print("Start of epoch {}".format(n))
+            start_time = time.time()
+            for idx, batch in enumerate((self.dataloader_train)):
                 loss = 0
-                outputs, scores, _ = model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
-                                        batch['word_pos_indices'])
+                outputs, scores, _ = model(batch)
                 targets = self.get_score_target(batch)
                 if self.args.loss == 'cel':
                     for i in range(len(self.scoring_criteria)):
@@ -219,6 +240,9 @@ class TrainModel:
                     model_optimizer.step()
                     model_optimizer.zero_grad()
             # scheduler.step()
+            end_time = time.time()
+            print("End of epoch {} with {} training time".format(n, end_time-start_time))
+
             avg_epoch_loss = epoch_loss / len(self.dataloader_train)
             loss_arr.append(avg_epoch_loss)
             print("start of val on train set")
@@ -275,10 +299,9 @@ class TrainModel:
         print(model_optimizer)
         for n in range(epochs):
             epoch_loss = 0
-            for batch in tqdm(self.dataloader_train):
+            for batch in (self.dataloader_train):
                 loss = 0
-                outputs, scores, _ = mtl_model(batch['indices'], batch['lens'], batch['trans_pos_indices'],
-                                            batch['word_pos_indices'])
+                outputs, scores, _ = mtl_model(batch)
                 targets = [self.get_score_target(batch)]
                 target2 = [torch.tensor(batch[criterion+" fbk_vector"], dtype=float, device=self.args.device)
                            for criterion in self.scoring_criteria]
@@ -354,6 +377,7 @@ class TrainModel:
         axs[1].legend()
         plt.show()
         plt.savefig(self.args.save_path + 'fold_' + str(self.fold) + '_loss.png')
+
 
 
 

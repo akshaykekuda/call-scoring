@@ -21,11 +21,11 @@ class Collate:
 
     def pad_trans(self, trans, max_len):
         num_sents = len(trans)
-        trans_pos_indices = [i + 1 for i in range(num_sents+1)]
+        sent_pos_indices = [i + 1 for i in range(num_sents+1)]
         for i in range(max_len - num_sents):
             trans.append('<pad>')
-            trans_pos_indices.append(0)
-        return trans, trans_pos_indices
+            sent_pos_indices.append(0)
+        return trans, sent_pos_indices
 
     def get_indices(self, sentence, max_sent_len):
         tokens = word_tokenizer(sentence)
@@ -57,7 +57,7 @@ class Collate:
 
         for sample in batch:
             trans = sample['text']
-            pad_trans, sample['trans_pos_indices'] = self.pad_trans(trans, max_num_sents)
+            pad_trans, sample['sent_pos_indices'] = self.pad_trans(trans, max_num_sents)
             sample['indices'] = []
             sample['word_pos_indices'] = []
             for sent in pad_trans:
@@ -71,8 +71,7 @@ class Collate:
                 batch_dict[key].append(sample[key])
 
         batch_dict['indices'] = torch.tensor(batch_dict['indices'], device=self.device)
-        batch_dict['trans_pos_indices'] = torch.tensor(batch_dict['trans_pos_indices'], device=self.device)
+        batch_dict['sent_pos_indices'] = torch.tensor(batch_dict['sent_pos_indices'], device=self.device)
         batch_dict['word_pos_indices'] = torch.tensor(batch_dict['word_pos_indices'], device=self.device)
         batch_dict['lens'] = trans_len
-
         return batch_dict
