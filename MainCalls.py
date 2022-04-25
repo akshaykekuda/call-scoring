@@ -38,9 +38,9 @@ random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 
-path_to_handscored_p = '/mnt/transcriber/Call_Scoring/ScoringDetail_viw_all_subscore.p' 
+path_to_handscored_p = 'ScoringDetail_viw_all_subscore.p'
 
-word_embedding_pt = dict(glove='/mnt/transcriber/word_embeddings/glove_word_vectors',
+word_embedding_pt = dict(glove='../word_embeddings/glove_word_vectors',
                          w2v='/mnt/transcriber/word_embeddings/custom_w2v_100d',
                          fasttext='../word_embeddings/fasttext_300d.bin')
 dataset_dir = "datasets/"
@@ -324,7 +324,6 @@ def run_cross_validation_cross(train_df, test_df):
     # print(train_df)
     # pdb.set_trace()
     for train, dev in kf.split(train_df):
-        print("train value is ", train)
         # train, dev = train_test_split(df_sampled, test_size=0.20)
         t_df = train_df.iloc[train].copy()
         # t2_df = train2_df.iloc[train].copy()

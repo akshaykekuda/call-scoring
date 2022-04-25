@@ -366,9 +366,11 @@ class HS2CROSS(nn.Module):
         bs = len(inputs)
         att2 = torch.cat((self.cls_token.repeat(bs, 1).unsqueeze(1), att2), dim=1)
         padding_mask = sent_pos_indices1 == 0
-        attn_in, attn_output_weights = self.multihead_attn(att1, att2, att2, key_padding_mask=padding_mask)
+        attn_output, attn_output_weights = self.multihead_attn(att1, att2, att2, key_padding_mask=padding_mask)
+        attn_output = attn_output[:, 0, :]
 
-        return attn_in,attn_output_weights, None
+        return attn_output, attn_output_weights, None
+
 
 class SentenceSelfAttention(nn.Module):
     def __init__(self, model_size, num_heads, max_trans_len, dropout_rate, num_layers):
