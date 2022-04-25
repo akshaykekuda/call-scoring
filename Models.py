@@ -17,7 +17,7 @@ import copy
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from Custom_Multihead_Attention import custom_multi_head_attention_forward
 from gensim.models.doc2vec import Doc2Vec
-F.multi_head_attention_forward = custom_multi_head_attention_forward
+# F.multi_head_attention_forward = custom_multi_head_attention_forward
 
 class FCN_Tanh(nn.Module):
     def __init__(self, input_size, num_classes, dropout_rate):
@@ -335,6 +335,40 @@ class HS2AN(nn.Module):
         # print(sentence_att_scores.shape)
         return att2, sentence_att_scores, value
 
+class HS2CROSS(nn.Module):
+    def __init__(self, vocab_size, embedding_size, model_size, weights_matrix, max_trans_len,
+                 max_sent_len, word_nh, sent_nh, dropout_rate, num_layers, word_num_layers):
+        super(HS2CROSS, self).__init__()
+        self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
+                                                     max_sent_len, word_nh, dropout_rate, word_num_layers)
+        self.word_self_attention1 = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
+                                                     max_sent_len, word_nh, dropout_rate, word_num_layers)                                             
+        self.sentence_self_attention = SentenceSelfAttention(model_size, sent_nh, max_trans_len, dropout_rate,
+                                                             num_layers)
+        self.multihead_attn = nn.MultiheadAttention(model_size, sent_nh, dropout=dropout_rate, batch_first=True)
+        self.layerNorm = nn.LayerNorm(model_size)
+        self.ffn = nn.Linear(embedding_size, model_size)
+        self.ffn1 = nn.Linear(embedding_size, model_size)
+        self.model_size = model_size
+        self.cls_token = torch.rand(size=(1, model_size), requires_grad=True, device=device)
+
+    def forward(self, batch):
+        inputs = batch['indices']
+        sent_pos_indices = batch['sent_pos_indices']
+        word_pos_indices = batch['word_pos_indices']
+        inputs1 = batch['indices2']
+        sent_pos_indices1 = batch['sent_pos_indices2']
+        word_pos_indices1 = batch['word_pos_indices2']
+        att1 = self.word_self_attention.forward(inputs, word_pos_indices)
+        att2 = self.word_self_attention1.forward(inputs1, word_pos_indices1)
+        att1 = self.ffn(att1)
+        att2 = self.ffn1(att2)
+        bs = len(inputs)
+        att2 = torch.cat((self.cls_token.repeat(bs, 1).unsqueeze(1), att2), dim=1)
+        padding_mask = sent_pos_indices1 == 0
+        attn_in, attn_output_weights = self.multihead_attn(att1, att2, att2, key_padding_mask=padding_mask)
+
+        return attn_in,attn_output_weights, None
 
 class SentenceSelfAttention(nn.Module):
     def __init__(self, model_size, num_heads, max_trans_len, dropout_rate, num_layers):
@@ -395,7 +429,7 @@ class WordSelfAttention(nn.Module):
         padding_mask = padding_mask.flatten(0, 1)
         for i in range(self.num_layers):
             query = key = value = attn_in
-            attn_in, _ = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
+            attn_in, attn_output_weights = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
         attn_output = attn_in
         sent_embedding = attn_output[:, 0, :]
 

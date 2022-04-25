@@ -72,6 +72,40 @@ def prepare_trancript_score_df(score_df, q_text, transcripts_dir):
     print("Number of Calls = {}".format(len(df)))
     return df
 
+def prepare_trancript_score_df_cross(score_df, q_text, transcripts_dir, transcripts_dir2):
+    ids = []
+    text_arr = []
+    text2_arr = []
+    for file in tqdm(os.listdir(transcripts_dir)):
+        if file.endswith('.txt'):
+            file_loc = transcripts_dir + file
+            id = re.split("_|-|\.", file)[1]
+            if id in score_df.index:
+                clean_text = preprocess_transcript(file_loc)
+                if len(clean_text) == 0:
+                    continue
+                ids.append(id)
+                text_arr.append(clean_text)
+    df = score_df.loc[ids]
+    df['text'] = text_arr
+    print(df.columns)
+    for file in tqdm(os.listdir(transcripts_dir2)):
+        if file.endswith('.txt'):
+            file_loc = transcripts_dir2 + file
+            id = re.split("_|-|\.", file)[1]
+            if id in score_df.index:
+                clean_text = preprocess_transcript(file_loc)
+                if len(clean_text) == 0:
+                    continue
+                #ids.append(id)
+                text2_arr.append(clean_text)
+    # df = score_df.loc[ids]
+    df['text2'] = text2_arr
+
+    df.loc[:, q_text] = df.loc[:, q_text].astype(int)
+    print("Number of Calls = {}".format(len(df)))
+    return df
+
 
 def prepare_inference_df(transcripts_dir):
     df = pd.DataFrame()

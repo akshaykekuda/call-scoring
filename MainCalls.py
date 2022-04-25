@@ -11,9 +11,9 @@ import datetime
 import sys
 import os, json
 from pathlib import Path
-from DatasetClasses import CallDataset, CallDatasetWithFbk, MLMDataSet
+from DatasetClasses import CallDataset, CallDatasetWithFbk, MLMDataSet, CallDatasetCross
 from torch.utils.data import DataLoader,random_split
-from DataLoader_fns import Collate
+from DataLoader_fns import Collate, CollateCross
 from FeedbackComments import FeedbackComments
 from gensim.models import Word2Vec
 from gensim.models.keyedvectors import Word2VecKeyedVectors
@@ -30,6 +30,7 @@ import numpy as np
 import torch
 import pandas as pd
 from pathlib import Path
+import pdb
 
 import time
 seed = 1000
@@ -37,12 +38,13 @@ random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 
-path_to_handscored_p = 'ScoringDetail_viw_all_subscore.p'
+path_to_handscored_p = '/mnt/transcriber/Call_Scoring/ScoringDetail_viw_all_subscore.p' 
+
+word_embedding_pt = dict(glove='/mnt/transcriber/word_embeddings/glove_word_vectors',
+                         w2v='/mnt/transcriber/word_embeddings/custom_w2v_100d',
+                         fasttext='../word_embeddings/fasttext_300d.bin')
 dataset_dir = "datasets/"
 
-word_embedding_pt = dict(glove='../word_embeddings/glove_word_vectors',
-                         w2v='../word_embeddings/custom_w2v_100d',
-                         fasttext='../word_embeddings/fasttext_300d.bin')
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 
 global vocab
@@ -72,6 +74,8 @@ def _parse_args():
     parser.add_argument('--dropout', type=float, default=0.2, help='dropout rate')
     parser.add_argument('--trans_path', type=str, default='transcriptions/text_only/', help='link to transcripts')
     parser.add_argument('--test_path', type=str, default='transcriptions/test_transcriptions/', help='link to test transcripts')
+    parser.add_argument('--trans2_path', type=str, help='link to transcripts')
+    parser.add_argument('--test2_path', type=str, help='link to test transcripts')
     parser.add_argument('--device', type=str, default='cpu', help='device to use')
     parser.add_argument('--loss', type=str, default='bce', help='optimizer to use')
     parser.add_argument('--k', type=int, default=20, help='number of top comments to use')
@@ -85,7 +89,6 @@ def _parse_args():
     parser.add_argument("--acum_step", default=1, type=int, help="grad accumulation steps")
     parser.add_argument("--tok_path", default='sa_tokenizer/', type=str, help="path to trained tokenizer")
     parser.add_argument("--doc2vec_pt", default='../word_embeddings/trained_doc2vec', type=str, help="path to trained doc2vec model")
-
     args = parser.parse_args()
     return args
 
@@ -313,6 +316,99 @@ def run_cross_validation(train_df, test_df):
     return kfold_results
 
 
+def run_cross_validation_cross(train_df, test_df):
+    # kf = KFold(n_splits=2, shuffle=True)
+    kf = ShuffleSplit(n_splits=1, test_size=0.15, random_state=seed)
+    kfold_results = []
+    fold = 0
+    # print(train_df)
+    # pdb.set_trace()
+    for train, dev in kf.split(train_df):
+        print("train value is ", train)
+        # train, dev = train_test_split(df_sampled, test_size=0.20)
+        t_df = train_df.iloc[train].copy()
+        # t2_df = train2_df.iloc[train].copy()
+        # t_df = t_df.loc[t_df.text.apply(lambda x: len(x.split('\n'))).sort_values().index]
+        dev_df = train_df.iloc[dev].copy()
+        # dev2_df = train2_df.iloc[dev].copy()
+
+        subscore_dist = t_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
+        # print("Subscore distribution count in Training set\n", subscore_dist)
+        subscore_dist = dev_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
+        # print("Subscore distribution count in Dev set\n", subscore_dist)
+
+        dataset_transcripts_train = CallDatasetCross(t_df, scoring_criteria)
+        dataset_transcripts_dev = CallDatasetCross(dev_df, scoring_criteria)
+        dataset_transcripts_test = CallDatasetCross(test_df, scoring_criteria)
+        # dataset_transcripts_train2 = CallDataset(t2_df, scoring_criteria)
+        # dataset_transcripts_dev2 = CallDataset(dev2_df, scoring_criteria)
+        # dataset_transcripts_test2 = CallDataset(test2_df, scoring_criteria)
+        max_trans_len, max_sent_len = 512, 128
+        vocab = dataset_transcripts_train.get_vocab()
+        # vocab2 = dataset_transcripts_train2.get_vocab()
+        # dataset_transcripts_train.save_vocab('vocab')
+        # dataset_transcripts_train2.save_vocab('vocab2')
+        # print("dataset_transcripts1 is", dataset_transcripts_train)
+        print("dataset_transcripts2 is", dataset_transcripts_train)
+        # pdb.set_trace()
+        batch_size = args.batch_size
+        c = CollateCross(vocab, args.device)
+        # x = c.collate(dataset_transcripts_train)
+        # x1 = c1.collate(dataset_transcripts_train2)
+
+        # a = c.collate(dataset_transcripts_dev)
+        # a1 = c1.collate(dataset_transcripts_dev2)
+
+        # b = c.collate(dataset_transcripts_test)
+        # b1 = c1.collate(dataset_transcripts_test2)
+
+        # pdb.set_trace()
+        # print("collated data is x",x)
+        
+        # x2 = { 'id':x1['id'], 'text1' : x1['text'], 'scores1' : x1['scores'], 'indices1' : x1['indices'], 'sent_pos_indices1' : x1['sent_pos_indices'],
+        #  'word_pos_indices1': x1['word_pos_indices'], 'lens1' : x1['lens'], 'text' : x['text'], 'scores' : x['scores'], 'indices' : x['indices'], 'sent_pos_indices' : x['sent_pos_indices'],
+        #  'word_pos_indices': x['word_pos_indices'], 'lens' : x['lens']
+        #     }
+        # a2 = { 'id':a1['id'], 'text1' : a1['text'], 'scores1' : a1['scores'], 'indices1' : a1['indices'], 'sent_pos_indices1' : a1['sent_pos_indices'],
+        #  'word_pos_indices1': a1['word_pos_indices'], 'lens1' : a1['lens'], 'text' : a['text'], 'scores' : a['scores'], 'indices' : a['indices'], 'sent_pos_indices' : a['sent_pos_indices'],
+        #  'word_pos_indices': a['word_pos_indices'], 'lens' : a['lens']
+        #     }    
+        # b2 = { 'id':b1['id'], 'text1' : b1['text'], 'scores1' : b1['scores'], 'indices1' : b1['indices'], 'sent_pos_indices1' : b1['sent_pos_indices'],
+        #  'word_pos_indices1': b1['word_pos_indices'], 'lens1' : b1['lens'], 'text' : b['text'], 'scores' : b['scores'], 'indices' : b['indices'], 'sent_pos_indices' : b['sent_pos_indices'],
+        #  'word_pos_indices': b['word_pos_indices'], 'lens' : b['lens']
+        #     }
+                            
+        dataloader_transcripts_train = DataLoader(dataset_transcripts_train, batch_size=batch_size, shuffle=True,
+                                                  num_workers=args.num_workers, collate_fn = c.collate)
+        dataloader_transcripts_dev = DataLoader(dataset_transcripts_dev, batch_size=batch_size, shuffle=False,
+                                                num_workers=args.num_workers,collate_fn = c.collate)
+        dataloader_transcripts_test = DataLoader(dataset_transcripts_test, batch_size=batch_size, shuffle=False,
+                                                 num_workers=args.num_workers, collate_fn = c.collate)
+        # pdb.set_trace()
+        embedding_model = KeyedVectors.load(word_embedding_pt[args.word_embedding], mmap='r')
+        vocab_size = len(vocab)
+        embedding_size = embedding_model.vector_size
+        weights_matrix = np.zeros((vocab_size, embedding_size))
+        i = 2 # ignore <UNK> and <pad> tokens
+        for word in vocab.get_itos()[2:]:
+            try:
+                weights_matrix[i] = embedding_model[word]  # model.wv[word] for trained word2vec
+            except KeyError:
+                weights_matrix[i] = np.random.normal(scale=0.6, size=(embedding_size,))
+            i += 1
+        weights_matrix[0] = np.mean(weights_matrix, axis=0)
+        weights_matrix = torch.tensor(weights_matrix)
+        trainer = TrainModel(dataloader_transcripts_train, dataloader_transcripts_dev, vocab_size, embedding_size,
+                             weights_matrix, args, max_trans_len, max_sent_len, scoring_criteria, fold)
+        if args.use_feedback:
+            metrics = predict_scores_mtl(trainer, dataloader_transcripts_test)
+        else:
+            metrics = predict_scores(trainer, dataloader_transcripts_test)
+        fold+=1
+        kfold_results.append(metrics)
+    return kfold_results
+
+
 def run_cross_validation_mlm(tokenizer):
     print("training mlm")
 
@@ -387,15 +483,18 @@ if __name__ == "__main__":
         train_ds_path = dataset_dir+'train'
         test_ds_path = dataset_dir+'test'
         if args.new_data:
+            print("creating the dataframes")
             score_df, q_text = prepare_score_df(
                 path_to_handscored_p, workgroup=args.workgroup)
-            train_df = prepare_trancript_score_df(score_df, q_text, args.trans_path)
+            train_df = prepare_trancript_score_df_cross(score_df, q_text, args.trans_path, args.trans2_path)
             with open(train_ds_path, 'wb') as f:
                 pickle.dump(train_df, f)
-            test_df = prepare_trancript_score_df(score_df, q_text, args.test_path)
+            test_df = prepare_trancript_score_df_cross(score_df, q_text, args.test_path,args.test2_path)
             with open(test_ds_path, 'wb') as f:
                 pickle.dump(test_df, f)
+            pdb.set_trace()
         else:
+            print("Getting dataset from saved files")
             with open(train_ds_path, 'rb') as f:
                 train_df = pickle.load(f)
             with open(test_ds_path, 'rb') as f:
@@ -415,8 +514,8 @@ if __name__ == "__main__":
             train_df = balance_df(train_df, args.train_samples)
 
         subscore_dist = test_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
-        print("Subscore distribution count in Test set\n", subscore_dist)
-        kfold_results = run_cross_validation(train_df, test_df)
+        # print("Subscore distribution count in Test set\n", subscore_dist)
+        kfold_results = run_cross_validation_cross(train_df, test_df)
 
     # avg_tuple = [sum(y) / len(y) for y in zip(*kfold_results)]
     # print("Overall accuracy={} Overall F1 score={}".format(avg_tuple[0], avg_tuple[1]))

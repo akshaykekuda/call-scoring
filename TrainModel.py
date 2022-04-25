@@ -58,6 +58,12 @@ class TrainModel:
                             self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh,
                             self.args.dropout, self.args.num_layers,
                             self.args.word_nlayers)
+        elif self.args.model == 'hs2cross':
+            print("running Hierarchical Self-Self Attention Network")
+            encoder = HS2CROSS(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
+                            self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh,
+                            self.args.dropout, self.args.num_layers,
+                            self.args.word_nlayers)                    
         elif self.args.model == 'lstm':
             print("running LSTM Self Attention Network")
             encoder = LSTMAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
