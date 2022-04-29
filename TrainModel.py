@@ -67,7 +67,11 @@ class TrainModel:
         elif self.args.model == 'lstm':
             print("running LSTM Self Attention Network")
             encoder = LSTMAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
-                                    self.args.dropout)
+                                    self.args.dropout, self.args.num_layers)
+        elif self.args.model == 'dual_lstm':
+            print("running Dual LSTM Self Attention Network")
+            encoder = DualLSTMAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
+                                    self.args.dropout, self.args.num_layers)        
         elif self.args.model == 'wtsan':
             print("running Word Transformer Self Attn model")
             encoder = WordTransformerAttention(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix, self.max_sent_len,

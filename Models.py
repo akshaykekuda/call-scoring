@@ -85,13 +85,13 @@ class EncoderRNN(nn.Module):
 
 
 class LSTMAttention(nn.Module):
-    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate):
+    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate, num_layers):
         super(LSTMAttention, self).__init__()
 
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
         self.embedding.load_state_dict({'weight': weights_matrix})
         self.hidden_size = hidden_size
-        self.gru = nn.LSTM(embedding_size, hidden_size, dropout=dropout_rate, num_layers=1, batch_first=True,
+        self.lstm = nn.LSTM(embedding_size, hidden_size, dropout=dropout_rate, num_layers=num_layers, batch_first=True,
                            bidirectional=True, proj_size=hidden_size // 2)
         self.attn = nn.Sequential(
             nn.Linear(hidden_size, 1),
@@ -111,7 +111,7 @@ class LSTMAttention(nn.Module):
         embed_output = torch.cat((self.cls_token.repeat(bs, 1).unsqueeze(1), embed_output), dim=1)
         pck_seq = torch.nn.utils.rnn.pack_padded_sequence(embed_output, trans_lens, batch_first=True,
                                                           enforce_sorted=False)
-        output_pckd, hidden = self.gru(pck_seq)
+        output_pckd, hidden = self.lstm(pck_seq)
         output, trans_lens = torch.nn.utils.rnn.pad_packed_sequence(output_pckd, batch_first=True, padding_value=0)
         # output, hidden = self.gru(embed_output)
         attn_weights = self.attn(output)
@@ -339,37 +339,58 @@ class HS2CROSS(nn.Module):
     def __init__(self, vocab_size, embedding_size, model_size, weights_matrix, max_trans_len,
                  max_sent_len, word_nh, sent_nh, dropout_rate, num_layers, word_num_layers):
         super(HS2CROSS, self).__init__()
-        self.word_self_attention = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
-                                                     max_sent_len, word_nh, dropout_rate, word_num_layers)
         self.word_self_attention1 = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
+                                                     max_sent_len, word_nh, dropout_rate, word_num_layers)
+        self.word_self_attention2 = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
                                                      max_sent_len, word_nh, dropout_rate, word_num_layers)                                             
-        self.sentence_self_attention = SentenceSelfAttention(model_size, sent_nh, max_trans_len, dropout_rate,
-                                                             num_layers)
-        self.multihead_attn = nn.MultiheadAttention(model_size, sent_nh, dropout=dropout_rate, batch_first=True)
+        self.sentence_self_attention1 = nn.MultiheadAttention(model_size, sent_nh, dropout=dropout_rate, batch_first=True)
+        self.sentence_self_attention2 = nn.MultiheadAttention(model_size, sent_nh, dropout=dropout_rate, batch_first=True)
+        self.cross_attention = nn.MultiheadAttention(model_size, sent_nh, dropout=dropout_rate, batch_first=True)
         self.layerNorm = nn.LayerNorm(model_size)
-        self.ffn = nn.Linear(embedding_size, model_size)
         self.ffn1 = nn.Linear(embedding_size, model_size)
-        self.model_size = model_size
-        self.cls_token = torch.rand(size=(1, model_size), requires_grad=True, device=device)
+        self.ffn2 = nn.Linear(embedding_size, model_size)
+        self.cls_token1 = torch.rand(size=(1, model_size), requires_grad=True, device=device)
+        self.cls_token2 = torch.rand(size=(1, model_size), requires_grad=True, device=device)
 
     def forward(self, batch):
-        inputs = batch['indices']
-        sent_pos_indices = batch['sent_pos_indices']
-        word_pos_indices = batch['word_pos_indices']
-        inputs1 = batch['indices2']
-        sent_pos_indices1 = batch['sent_pos_indices2']
-        word_pos_indices1 = batch['word_pos_indices2']
-        att1 = self.word_self_attention.forward(inputs, word_pos_indices)
-        att2 = self.word_self_attention1.forward(inputs1, word_pos_indices1)
-        att1 = self.ffn(att1)
-        att2 = self.ffn1(att2)
-        bs = len(inputs)
-        att2 = torch.cat((self.cls_token.repeat(bs, 1).unsqueeze(1), att2), dim=1)
-        padding_mask = sent_pos_indices1 == 0
-        attn_output, attn_output_weights = self.multihead_attn(att1, att2, att2, key_padding_mask=padding_mask)
-        attn_output = attn_output[:, 0, :]
+        inputs1 = batch['indices']
+        sent_pos_indices1 = batch['sent_pos_indices']
+        word_pos_indices1 = batch['word_pos_indices']
+        inputs2 = batch['indices2']
+        sent_pos_indices2 = batch['sent_pos_indices2']
+        word_pos_indices2 = batch['word_pos_indices2']
+        att1 = self.word_self_attention1.forward(inputs1, word_pos_indices1)
+        att2 = self.word_self_attention2.forward(inputs2, word_pos_indices2)
+        att1 = self.ffn1(att1)
+        att2 = self.ffn2(att2)
+        bs = len(inputs1)
+        ch1 = torch.cat((self.cls_token1.repeat(bs, 1).unsqueeze(1), att1), dim=1)
+        ch2 = torch.cat((self.cls_token2.repeat(bs, 1).unsqueeze(1), att2), dim=1)
+        padding_mask1 = sent_pos_indices1==0
+        padding_mask2 = sent_pos_indices2 ==0
+        sent_att1, wt1 = self.sentence_self_attention1(ch1, ch1, ch1, key_padding_mask=padding_mask1)
+        sent_att2, wt2 = self.sentence_self_attention2(ch2, ch2, ch2, key_padding_mask=padding_mask2)
+        # attn_output, attn_output_weights = self.cross_attention(sent_att1, sent_att2, sent_att2)
+        attn_output = sent_att1[:, 0, :] + sent_att2[:, 0, :]
+        
+        return attn_output, wt1, None
 
-        return attn_output, attn_output_weights, None
+class DualLSTMAttention(nn.Module):
+    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate, num_layers):
+        super(DualLSTMAttention, self).__init__()
+        self.csr_encoder = LSTMAttention(vocab_size, embedding_size, hidden_size//2, weights_matrix, dropout_rate, num_layers)
+        self.customer_encoder = LSTMAttention(vocab_size, embedding_size, hidden_size//2, weights_matrix, dropout_rate, num_layers)
+    
+    def forward(self, batch):
+        inputs2 = batch['indices2']
+        sent_pos_indices2 = batch['sent_pos_indices2']
+        word_pos_indices2 = batch['word_pos_indices2']
+        batch2 = {'indices': inputs2, 'sent_pos_indices': sent_pos_indices2, 'word_pos_indices': word_pos_indices2}
+        csr_out, wt1, val1 = self.csr_encoder(batch)
+        customer_out, wt2, val2 = self.customer_encoder(batch2)
+        out = torch.cat((csr_out, customer_out), dim=-1)
+        return out, wt1, None
+
 
 
 class SentenceSelfAttention(nn.Module):
