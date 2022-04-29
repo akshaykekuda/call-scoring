@@ -84,6 +84,32 @@ class EncoderRNN(nn.Module):
         return output, None
 
 
+class LSTMEncoder(nn.Module):
+    def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate, num_layers):
+        super(LSTMEncoder, self).__init__()
+
+        self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=1)
+        self.embedding.load_state_dict({'weight': weights_matrix})
+        self.lstm = nn.LSTM(embedding_size, hidden_size, dropout=dropout_rate, num_layers=num_layers, batch_first=True,
+                           bidirectional=True, proj_size=hidden_size // 2)
+        self.cls_token = torch.rand(size=(1, embedding_size), requires_grad=True, device=device)
+
+    def forward(self, batch):
+        inputs = batch['indices']
+        sent_pos_indices = batch['sent_pos_indices']
+        embed_output = self.embedding(inputs)
+        bs = inputs.size()[0]
+        attn_mask = sent_pos_indices == 0
+        trans_lens = (~attn_mask).sum(dim=1).cpu()
+        embed_output = torch.mean(embed_output, dim=2, keepdim=True).squeeze(2)
+        embed_output = torch.cat((self.cls_token.repeat(bs, 1).unsqueeze(1), embed_output), dim=1)
+        pck_seq = torch.nn.utils.rnn.pack_padded_sequence(embed_output, trans_lens, batch_first=True,
+                                                          enforce_sorted=False)
+        output_pckd, hidden = self.lstm(pck_seq)
+        output, trans_lens = torch.nn.utils.rnn.pad_packed_sequence(output_pckd, batch_first=True, padding_value=0)
+        return output
+
+
 class LSTMAttention(nn.Module):
     def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate, num_layers):
         super(LSTMAttention, self).__init__()
@@ -118,6 +144,7 @@ class LSTMAttention(nn.Module):
         ## mask weights
         attn_weights_masked = attn_weights.masked_fill(attn_mask.unsqueeze(2), value=-np.inf)
         # attn_weights = attn_mask.unsqueeze(2) * attn_weights
+
         attn_scores = F.softmax(attn_weights_masked, 1)
         out = torch.bmm(output.transpose(1, 2), attn_scores).squeeze(2)
         return out, attn_scores.squeeze(2), None
@@ -375,22 +402,40 @@ class HS2CROSS(nn.Module):
         
         return attn_output, wt1, None
 
+
+class AttentionLayer(nn.Module):
+    def __init__(self, hidden_size, dropout):
+        super(AttentionLayer, self).__init__()
+        self.attn = nn.Linear(hidden_size, hidden_size)
+        self.dropout = dropout
+
+    def forward(self, enc_output, dec_output):
+        attn = self.attn(enc_output)
+        attn_prod = torch.bmm(dec_output, attn.transpose(1, 2))
+        att_scores = F.softmax(attn_prod, dim=2)
+        context = torch.bmm(att_scores, enc_output)
+        out = torch.cat((context, dec_output), dim=2)
+        return F.dropout(out, p=self.dropout), att_scores
+
+
 class DualLSTMAttention(nn.Module):
     def __init__(self, vocab_size, embedding_size, hidden_size, weights_matrix, dropout_rate, num_layers):
         super(DualLSTMAttention, self).__init__()
-        self.csr_encoder = LSTMAttention(vocab_size, embedding_size, hidden_size//2, weights_matrix, dropout_rate, num_layers)
-        self.customer_encoder = LSTMAttention(vocab_size, embedding_size, hidden_size//2, weights_matrix, dropout_rate, num_layers)
-    
+        self.csr_encoder = LSTMEncoder(vocab_size, embedding_size, hidden_size//2, weights_matrix, dropout_rate, num_layers)
+        self.customer_encoder = LSTMEncoder(vocab_size, embedding_size, hidden_size//2, weights_matrix, dropout_rate, num_layers)
+        self.cross_attention = AttentionLayer(hidden_size//2, dropout_rate)
+
     def forward(self, batch):
         inputs2 = batch['indices2']
         sent_pos_indices2 = batch['sent_pos_indices2']
         word_pos_indices2 = batch['word_pos_indices2']
         batch2 = {'indices': inputs2, 'sent_pos_indices': sent_pos_indices2, 'word_pos_indices': word_pos_indices2}
-        csr_out, wt1, val1 = self.csr_encoder(batch)
-        customer_out, wt2, val2 = self.customer_encoder(batch2)
-        out = torch.cat((csr_out, customer_out), dim=-1)
-        return out, wt1, None
-
+        csr_out = self.csr_encoder(batch)
+        customer_out = self.customer_encoder(batch2)
+        out, scores = self.cross_attention(csr_out, customer_out)
+        out = out[:, 0, :]
+        # out = torch.cat((csr_out, customer_out), dim=-1)
+        return out, scores, None
 
 
 class SentenceSelfAttention(nn.Module):
