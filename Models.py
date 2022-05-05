@@ -92,7 +92,7 @@ class LSTMEncoder(nn.Module):
         self.embedding.load_state_dict({'weight': weights_matrix})
         self.lstm = nn.LSTM(embedding_size, hidden_size, dropout=dropout_rate, num_layers=num_layers, batch_first=True,
                            bidirectional=True, proj_size=hidden_size // 2)
-        self.cls_token = torch.rand(size=(1, embedding_size), requires_grad=True, device=device)
+        self.cls_token = nn.Parameter(torch.rand(size=(1, embedding_size), requires_grad=True, device=device))
 
     def forward(self, batch):
         inputs = batch['indices']
@@ -123,7 +123,7 @@ class LSTMAttention(nn.Module):
             nn.Linear(hidden_size, 1),
             nn.Tanh()
         )
-        self.cls_token = torch.rand(size=(1, embedding_size), requires_grad=True, device=device)
+        self.cls_token = nn.Parameter(torch.rand(size=(1, embedding_size), requires_grad=True, device=device))
 
     def forward(self, batch):
         inputs = batch['indices']
@@ -212,7 +212,7 @@ class SentenceAttention(nn.Module):
             nn.Linear(hidden_size, 1),
             nn.Tanh()
         )
-        self.cls_token = torch.rand(size=(1, sentence_embedding_size), requires_grad=True, device=device)
+        self.cls_token = nn.Parameter(torch.rand(size=(1, sentence_embedding_size), requires_grad=True, device=device))
 
     def forward(self, inputs, positional_indices):
         bs = inputs.size()[0]
@@ -362,6 +362,7 @@ class HS2AN(nn.Module):
         # print(sentence_att_scores.shape)
         return att2, sentence_att_scores, value
 
+
 class HS2CROSS(nn.Module):
     def __init__(self, vocab_size, embedding_size, model_size, weights_matrix, max_trans_len,
                  max_sent_len, word_nh, sent_nh, dropout_rate, num_layers, word_num_layers):
@@ -376,8 +377,8 @@ class HS2CROSS(nn.Module):
         self.layerNorm = nn.LayerNorm(model_size)
         self.ffn1 = nn.Linear(embedding_size, model_size)
         self.ffn2 = nn.Linear(embedding_size, model_size)
-        self.cls_token1 = torch.rand(size=(1, model_size), requires_grad=True, device=device)
-        self.cls_token2 = torch.rand(size=(1, model_size), requires_grad=True, device=device)
+        self.cls_token1 = torch.nn.Parameter(torch.rand(size=(1, model_size), requires_grad=True, device=device))
+        self.cls_token2 = torch.nn.Parameter(torch.rand(size=(1, model_size), requires_grad=True, device=device))
 
     def forward(self, batch):
         inputs1 = batch['indices']
@@ -445,7 +446,7 @@ class SentenceSelfAttention(nn.Module):
         # self.multihead_attn = CustomMultiHeadAttention(embed_dim, num_heads, dropout=dropout_rate, batch_first=True)
         self.position_encoding = nn.Embedding(max_trans_len, model_size, padding_idx=0)
         self.num_layers = num_layers
-        self.cls_token = torch.rand(size=(1, model_size), requires_grad=True, device=device)
+        self.cls_token = nn.Parameter(torch.rand(size=(1, model_size), requires_grad=True, device=device))
 
     def forward(self, inputs, positional_indices):
         bs = inputs.size()[0]
