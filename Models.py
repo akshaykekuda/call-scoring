@@ -534,6 +534,28 @@ class MLMNetwork(nn.Module):
         return out
 
 
+class LSTMMHA(nn.Module):
+    def __init__(self, vocab_size, embedding_size, model_size, weights_matrix, num_heads, max_trans_len, dropout_rate, num_layers):
+        super(LSTMMHA, self).__init__()
+        self.lstm_encoder = LSTMEncoder(vocab_size, embedding_size, model_size, weights_matrix, dropout_rate, num_layers)
+        self.multihead_attn = nn.MultiheadAttention(model_size, num_heads, dropout=dropout_rate, batch_first=True)
+        self.position_encoding = nn.Embedding(max_trans_len, model_size, padding_idx=0)
+        self.num_layers = num_layers
+
+    def forward(self, batch):
+        lstm_out = self.lstm_encoder(batch)
+        sent_pos_indices = batch['sent_pos_indices']
+        positional_encoding = self.position_encoding(sent_pos_indices)
+        att_in = lstm_out + positional_encoding
+        padding_mask = sent_pos_indices == 0
+        for i in range(self.num_layers):
+            query = key = value = att_in
+            att_in, attn_output_weights = self.multihead_attn(query, key, value, key_padding_mask=padding_mask)
+        attn_output = att_in
+        attn_output = attn_output[:, 0, :]
+        return attn_output, attn_output_weights, value
+
+
 
 class PretrainDoc2Vec(nn.Module):
     def __init__(self, model_pt) -> None:

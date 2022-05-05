@@ -83,6 +83,10 @@ class TrainModel:
         elif self.args.model == 'doc2vec':
             print('running Doc2Vec model')
             encoder = PretrainDoc2Vec(self.args.doc2vec_pt)
+        elif self.args.model == 'lstmha':
+            print("running LSTM+MHA as sentence encoder")
+            encoder = LSTMMHA(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix, self.args.sent_nh,
+                              self.max_trans_len, self.args.dropout, self.args.num_layers)
 
         else:
             raise ValueError("Invalid Attention Model argument")
