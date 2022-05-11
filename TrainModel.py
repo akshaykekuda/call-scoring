@@ -58,9 +58,9 @@ class TrainModel:
                             self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh,
                             self.args.dropout, self.args.num_layers,
                             self.args.word_nlayers)
-        elif self.args.model == 'hs2cross':
+        elif self.args.model == 'hs2dual':
             print("running Hierarchical Self-Self Attention Network")
-            encoder = HS2CROSS(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
+            encoder = HS2ANDual(self.vocab_size, self.vec_size, self.args.model_size, self.weights_matrix,
                             self.max_trans_len, self.max_sent_len, self.args.word_nh, self.args.sent_nh,
                             self.args.dropout, self.args.num_layers,
                             self.args.word_nlayers)                    

@@ -363,10 +363,10 @@ class HS2AN(nn.Module):
         return att2, sentence_att_scores, value
 
 
-class HS2CROSS(nn.Module):
+class HS2ANDual(nn.Module):
     def __init__(self, vocab_size, embedding_size, model_size, weights_matrix, max_trans_len,
                  max_sent_len, word_nh, sent_nh, dropout_rate, num_layers, word_num_layers):
-        super(HS2CROSS, self).__init__()
+        super(HS2ANDual, self).__init__()
         self.word_self_attention1 = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,
                                                      max_sent_len, word_nh, dropout_rate, word_num_layers)
         self.word_self_attention2 = WordSelfAttention(vocab_size, embedding_size, model_size, weights_matrix,

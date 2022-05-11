@@ -32,7 +32,7 @@ def FastText(path):
     window_size = 40
     min_word = 5
     down_sampling = 1e-2
-    #vocab_size = len(vocab)
+    #vocab_size = len(call_vocab)
     ft_model = FastText(sentences = train_sentences,
                       vector_size=vec_size,
                       window=window_size,

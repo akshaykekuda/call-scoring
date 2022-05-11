@@ -127,7 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-vocab
+call_vocab
 logs/
 transcriptions/
 log_archive/

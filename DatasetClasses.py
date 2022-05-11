@@ -34,14 +34,23 @@ class CallDataset(Dataset):
         self.df = df
         self.scoring_criteria = scoring_criteria
         self.fbk_str = [criterion + " fbk_vector" for criterion in scoring_criteria]
-
+        if 'text2' in self.df:
+            self.dual = True
+        else:
+            self.dual = False
         word_tokenizer = get_tokenizer('basic_english')
         counter = Counter()
-        # Build vocab from transcripts
+        # Build call_vocab from transcripts
         for transcript in df.text:
             for i in range(len(transcript)):
                 words = word_tokenizer(transcript[i])
                 counter.update(words)
+
+        if self.dual:
+            for transcript in df.text2:
+                for i in range(len(transcript)):
+                    words = word_tokenizer(transcript[i])
+                    counter.update(words)
 
         self.vocab = vocab(counter)
         self.vocab.insert_token('<cls>', 0)
@@ -53,81 +62,21 @@ class CallDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
         text = self.df.iloc[idx]['text']
         id = self.df.index[idx]
         scores = self.df.iloc[idx][self.scoring_criteria]
         sample = {'text': text, 'id': id, 'scores': scores}
-        # if self.use_feedback:
-        #     fbk_str = [criterion + " fbk_vector" for criterion in scoring_criteria]
-        #     fbk_vector = self.df.iloc[idx][fbk_str]
-        #     sample['fbk_vector'] = fbk_vector
+        if self.dual:
+            text2 = self.df.iloc[idx]['text2']
+            sample['text2'] = text2
         return sample
 
     def get_vocab(self):
         return self.vocab
 
     def save_vocab(self, path):
-        output = open(path, 'wb')
-        pickle.dump(self.vocab, output)
-        output.close()
+        torch.save(self.vocab, path)
 
-class CallDatasetCross(Dataset):
-    """Call transcript dataset."""
-
-    def __init__(self, df, scoring_criteria):
-        """
-        Args:
-            file_name: The json file to make the dataset from
-        """
-        self.df = df
-        self.scoring_criteria = scoring_criteria
-        self.fbk_str = [criterion + " fbk_vector" for criterion in scoring_criteria]
-
-        word_tokenizer = get_tokenizer('basic_english')
-        counter = Counter()
-        # Build vocab from transcripts
-        for transcript in df.text:
-            for i in range(len(transcript)):
-                words = word_tokenizer(transcript[i])
-                counter.update(words)
-
-        for transcript in df.text2:
-            for i in range(len(transcript)):
-                words = word_tokenizer(transcript[i])
-                counter.update(words)        
-
-        self.vocab = vocab(counter)
-        self.vocab.insert_token('<cls>', 0)
-        self.vocab.insert_token('<pad>', 0)
-        self.vocab.insert_token('<UNK>', 0)
-        self.vocab.set_default_index(0)
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-        text = self.df.iloc[idx]['text']
-        text2 = self.df.iloc[idx]['text2']
-        id = self.df.index[idx]
-        scores = self.df.iloc[idx][self.scoring_criteria]
-        sample = {'text': text, 'id': id, 'scores': scores, 'text2': text2}
-        # if self.use_feedback:
-        #     fbk_str = [criterion + " fbk_vector" for criterion in scoring_criteria]
-        #     fbk_vector = self.df.iloc[idx][fbk_str]
-        #     sample['fbk_vector'] = fbk_vector
-        return sample
-
-    def get_vocab(self):
-        return self.vocab
-
-    def save_vocab(self, path):
-        output = open(path, 'wb')
-        pickle.dump(self.vocab, output)
-        output.close()
 
 class CallDatasetWithFbk(CallDataset):
     def __getitem__(self, idx):
@@ -143,13 +92,21 @@ class CallDatasetWithFbk(CallDataset):
             sample[fbk_category] = fbk_vector[fbk_category]
         return sample
 
+
 class InferenceCallDataSet(Dataset):
     def __init__(self, df) -> None:
         super().__init__()
         self.df = df
-        self.df['text'] = self.df.file_name.apply(lambda x: preprocess_transcript(x))
+
     def __len__(self):
         return len(self.df)
+
+    def __getitem__(self, idx):
+
+        text = self.df.iloc[idx]['text']
+        id = self.df.iloc[idx]['id']
+        sample = {'text': text, 'id': id}
+        return sample
 
 
 class MLMDataSet(Dataset):

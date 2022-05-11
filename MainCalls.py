@@ -11,9 +11,9 @@ import datetime
 import sys
 import os, json
 from pathlib import Path
-from DatasetClasses import CallDataset, CallDatasetWithFbk, MLMDataSet, CallDatasetCross
-from torch.utils.data import DataLoader,random_split
-from DataLoader_fns import Collate, CollateCross
+from DatasetClasses import CallDataset, CallDatasetWithFbk, MLMDataSet
+from torch.utils.data import DataLoader, random_split
+from DataLoader_fns import Collate, CollateDual
 from FeedbackComments import FeedbackComments
 from gensim.models import Word2Vec
 from gensim.models.keyedvectors import Word2VecKeyedVectors
@@ -38,6 +38,7 @@ pd.set_option("display.max_rows", None, "display.max_columns", None)
 global vocab
 sub_score_categories = ['Cross Selling', 'Creates Incentive', 'Education', 'Processes', 'Product Knowledge', 'Greeting', 'Professionalism', 'Confidence',  'Retention',
                         'Documentation']
+
 
 def _parse_args():
     """
@@ -148,61 +149,6 @@ def get_dataset(type, dataset_dir, df, scoring_criteria):
 
 def run_cross_validation(train_df, test_df):
     # kf = KFold(n_splits=2, shuffle=True)
-    kf = ShuffleSplit(n_splits=args.fold, test_size=0.15, random_state=seed)
-    kfold_results = []
-    fold = 0
-    for train, dev in kf.split(train_df):
-        # train, dev = train_test_split(df_sampled, test_size=0.20)
-        t_df = train_df.iloc[train].copy()
-        # t_df = t_df.loc[t_df.text.apply(lambda x: len(x.split('\n'))).sort_values().index]
-        dev_df = train_df.iloc[dev].copy()
-        subscore_dist = t_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
-        print("Subscore distribution count in Training set\n", subscore_dist)
-        subscore_dist = dev_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
-        print("Subscore distribution count in Dev set\n", subscore_dist)
-
-        dataset_transcripts_train = CallDataset(t_df, scoring_criteria)
-        dataset_transcripts_dev = CallDataset(dev_df, scoring_criteria)
-        dataset_transcripts_test = CallDataset(test_df, scoring_criteria)
-        max_trans_len, max_sent_len = 512, 128
-        vocab = dataset_transcripts_train.get_vocab()
-        dataset_transcripts_train.save_vocab('vocab')
-
-        batch_size = args.batch_size
-        c = Collate(vocab, args.device)
-        dataloader_transcripts_train = DataLoader(dataset_transcripts_train, batch_size=batch_size, shuffle=True,
-                                                  num_workers=args.num_workers, collate_fn=c.collate)
-        dataloader_transcripts_dev = DataLoader(dataset_transcripts_dev, batch_size=batch_size, shuffle=False,
-                                                num_workers=args.num_workers, collate_fn=c.collate)
-        dataloader_transcripts_test = DataLoader(dataset_transcripts_test, batch_size=batch_size, shuffle=False,
-                                                 num_workers=args.num_workers, collate_fn=c.collate)
-
-        embedding_model = KeyedVectors.load(word_embedding_pt[args.word_embedding], mmap='r')
-        vocab_size = len(vocab)
-        embedding_size = embedding_model.vector_size
-        weights_matrix = np.zeros((vocab_size, embedding_size))
-        i = 2 # ignore <UNK> and <pad> tokens
-        for word in vocab.get_itos()[2:]:
-            try:
-                weights_matrix[i] = embedding_model[word]  # model.wv[word] for trained word2vec
-            except KeyError:
-                weights_matrix[i] = np.random.normal(scale=0.6, size=(embedding_size,))
-            i += 1
-        weights_matrix[0] = np.mean(weights_matrix, axis=0)
-        weights_matrix = torch.tensor(weights_matrix)
-        trainer = TrainModel(dataloader_transcripts_train, dataloader_transcripts_dev, vocab_size, embedding_size,
-                             weights_matrix, args, max_trans_len, max_sent_len, scoring_criteria, fold)
-        if args.use_feedback:
-            metrics = predict_scores_mtl(trainer, dataloader_transcripts_test)
-        else:
-            metrics = predict_scores(trainer, dataloader_transcripts_test)
-        fold+=1
-        kfold_results.append(metrics)
-    return kfold_results
-
-
-def run_cross_validation_cross(train_df, test_df):
-    # kf = KFold(n_splits=2, shuffle=True)
     print("seed = {}".format(seed))
     kf = ShuffleSplit(n_splits=args.fold, test_size=0.15, random_state=seed)
     kfold_results = []
@@ -214,16 +160,13 @@ def run_cross_validation_cross(train_df, test_df):
         print("Subscore distribution count in Training set\n", subscore_dist)
         subscore_dist = dev_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
         print("Subscore distribution count in Dev set\n", subscore_dist)
-
-        dataset_transcripts_train = CallDatasetCross(t_df, scoring_criteria)
-        dataset_transcripts_dev = CallDatasetCross(dev_df, scoring_criteria)
-        dataset_transcripts_test = CallDatasetCross(test_df, scoring_criteria)
-        vocab = dataset_transcripts_train.get_vocab()
-
-        print("dataset_transcripts2 is", dataset_transcripts_train)
-        # pdb.set_trace()
+        dataset_transcripts_train = CallDataset(t_df, scoring_criteria)
+        dataset_transcripts_dev = CallDataset(dev_df, scoring_criteria)
+        dataset_transcripts_test = CallDataset(test_df, scoring_criteria)
+        dataset_transcripts_train.save_vocab('call_vocab')
+        vocab = torch.load('call_vocab')
         batch_size = args.batch_size
-        c = CollateCross(vocab, args.device)
+        c = CollateDual(vocab, args.device, dataset_transcripts_train.dual)
                             
         dataloader_transcripts_train = DataLoader(dataset_transcripts_train, batch_size=batch_size, shuffle=True,
                                                   num_workers=args.num_workers, collate_fn = c.collate)
@@ -350,13 +293,13 @@ if __name__ == "__main__":
             print("creating the dataframes")
             score_df, q_text = prepare_score_df(
                 path_to_handscored_p, workgroup=args.workgroup)
-            train_df = prepare_trancript_score_df_cross(score_df, q_text, args.trans_path, args.trans2_path)
+            train_df = prepare_trancript_score_df(score_df, q_text, args.trans_path, args.trans2_path)
             with open(train_ds_path, 'wb') as f:
                 pickle.dump(train_df, f)
-            test_df = prepare_trancript_score_df_cross(score_df, q_text, args.test_path,args.test2_path)
+            test_df = prepare_trancript_score_df(score_df, q_text, args.test_path, args.test2_path)
             with open(test_ds_path, 'wb') as f:
                 pickle.dump(test_df, f)
-            pdb.set_trace()
+            # pdb.set_trace()
         else:
             print("Getting dataset from saved files")
             with open(train_ds_path, 'rb') as f:
@@ -379,7 +322,7 @@ if __name__ == "__main__":
 
         subscore_dist = test_df.loc[:, scoring_criteria].apply(lambda x: x.value_counts())
         print("Subscore distribution count in Test set\n", subscore_dist)
-        kfold_results = run_cross_validation_cross(train_df, test_df)
+        kfold_results = run_cross_validation(train_df, test_df)
 
     # avg_tuple = [sum(y) / len(y) for y in zip(*kfold_results)]
     # print("Overall accuracy={} Overall F1 score={}".format(avg_tuple[0], avg_tuple[1]))
