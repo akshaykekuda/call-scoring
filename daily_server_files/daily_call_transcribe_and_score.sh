@@ -3,6 +3,7 @@
 # This is so one file can be run by each server. The servers all have 
 # name P-CTAPP8DXNN, where NN is 01 .. 05. server_num=NN
 # This solution only works because of the hostname convention.
+
 server_num=$(grep -Poh "[0-9]{2,2}" /etc/hostname)
 
 # You can set -d particular date to force the script 
@@ -19,36 +20,33 @@ if [ -z "$filedate" ]; then
  filedate=$(date -d "1 days ago" +"%Y-%m-%d")
 fi
 
+asr_base=/home/mcmurw/
+
 # clean out build path
-build_output=/home/mcmurw/transcriber/build/output/
-# uncomment later
-rm -rf $build_output
-mkdir -p $build_output
+build_output="$asr_base"transcriber/build/output/
+
 
 # archive any output in the build output folder- we can use these transcriptions
 # for new examples of good or bad calls for the model.
-destination=/mnt/callratings/transcriptions/"$filedate"/$server_num
-mkdir -p /mnt/callratings/transcriptions/"$filedate"/
-mkdir -p $destination
+csr_destination=/mnt/callratings/transcriptions/"$filedate"/$server_num/csr/
+customer_destination=/mnt/callratings/transcriptions/"$filedate"/$server_num/customer/
+
+mkdir -p $csr_destination
+mkdir -p $customer_destination
 
 
 # path to model file
-model_path=/mnt/models/my_doc2vec_model_trained_2
+model_path=/mnt/models/attention_model/best_model
+vocab_path=/mnt/models/attention_model/call_vocab
 
-# Directories for sales calls
-sales_lo=/mnt/models/scoring/sale_below60/
-sales_hi=/mnt/models/scoring/sale_above85/
-sales_output=/mnt/callratings/daily_scores/"$filedate"/sale"$server_num".csv
 
-# directories for customer service calls
-cs_lo=/mnt/models/scoring/below60/
-cs_hi=/mnt/models/scoring/above85/
-cs_output=/mnt/callratings/daily_scores/"$filedate"/cs"$server_num".csv
+# directory for output score fil
+
+output=/mnt/callratings/daily_scores/"$filedate"/server"$server_num".csv
 
 # define directory where to put wav files that have been assigned to this server.
 wavpath=/mnt/callratings/run/"$filedate"/test"$server_num"/
 mkdir -p $wavpath
-cd /mnt/callratings/
 
 # This loop converts all *.opus files to *.wav
 for f in "$wavpath"*.opus; do
@@ -62,48 +60,58 @@ done
 # Delete all .opus files, since they are no longer needed
 rm -f "$wavpath"*.opus
 
-# Create 15 directories, one for each core
-for i in {0..15}; do
-   mkdir -p "$wavpath"$i
-done
+#split wav file into customer and csr channel
 
-# initialize count variable
-count=1
-
-# iterate through each wave, and mv it to its directory
-for f in "$wavpath"*.wav; do
-        mv $f "$wavpath"$(($count%16))
-        (( count++ ))
-done
+python split_arrange.py $wavpath
 
 # call batch.sh on each directory
 # 16 directories because 16 cores
 # This may seem dumb but it forces the server to use all 16 cores.
 
-for j in {0..15}; do
-	/home/mcmurw/transcriber/batch.sh "$wavpath""$j"/* &
+sudo rm -rf "$asr_base"transcriber/build/
+sudo mkdir -p $build_output
+
+for dir in "$wavpath"csr/*/; do
+	sudo "$asr_base"transcriber/batch.sh "$dir"* &
 	sleep 1
 done
 wait
 sleep 1
 
-cp "$build_output"* $destination
+# move transcripts to destination
+
+sudo find $build_output -type f -exec mv {} $csr_destination \;
+
+# rm -rf "$asr_base"transcriber/build/*
+# mkdir -p $build_output
+
+# for j in {0..15}; do
+# 	"$asr_base"transcriber/batch.sh "$wavpath"customer/"$j"/* &
+# 	sleep 1
+# done
+# wait
+# sleep 1
+
+# cp "$build_output"* $customer_destination
+
 
 # Clean up and reorganize the wav files.
-find $wavpath -name '*.wav' -exec mv {} $wavpath \;
+# find $wavpath -name '*.wav' -exec mv {} $wavpath \;
 
 # Once this particular servers workload is done it will then score the calls it transcribed
 mkdir -p /mnt/callratings/daily_scores/"$filedate"/
 
-# customer service score
-python3 transcripts_to_scores_withday.py $wavpath $build_output $model_path $cs_lo $cs_hi $cs_output
+# call score
+source activate call_scoring
 
-# sales score
-python3 transcripts_to_scores_withday.py $wavpath $build_output $model_path $sales_lo $sales_hi $sales_output
+parent_dir=$(cd ../ && pwd)
+
+PYTHONPATH=$parent_dir python transcripts_to_score.py --csr_path $csr_destination --customer_path $customer_destination --model_path $model_path --vocab_path $vocab_path \
+--out_path $output  
 
 # At this point, the wav files are no longer needed and can be deleted.
 #This command has been commented out for now.
-rm -f "$wavpath"*.wav
+# rm -f "$wavpath"*.wav
 
 
 # Clear all the files that are older than 2 weeks to ensure that the server does not run out of space.
@@ -116,12 +124,13 @@ last_date=$(date --date="$current_date -2 week" +"%Y-%m-%d")
 find run/ ! -newermt "$last_date" | xargs rm -rfv
 find run/ -empty -type d -delete
 
-last_date=$(date --date="$current_date -1 month" +"%Y-%m-%d")
+# last_date=$(date --date="$current_date -1 month" +"%Y-%m-%d")
 # find transcriptions/ ! -newermt "$last_date" | xargs rm -rfv
 # find transcriptions/ -empty -type d -delete
 
+sudo rm -rf "$asr_base"transcriber/build
 
-rm -rf /home/mcmurw/transcriber/build/output
-rm -rf /home/mcmurw/transcriber/build/audio
-rm -rf /home/mcmurw/transcriber/build/trans
-rm -rf /home/mcmurw/transcriber/build/diarization
+# sudo rm -rf "$asr_base"transcriber/build/output
+# sudo rm -rf "$asr_base"transcriber/build/audio
+# sudo rm -rf "$asr_base"transcriber/build/trans
+# sudo rm -rf "$asr_base"transcriber/build/diarization

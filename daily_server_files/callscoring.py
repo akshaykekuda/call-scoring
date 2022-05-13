@@ -17,7 +17,7 @@ def main(day_to_run):
   d2 = (day_to_run + timedelta(6)).strftime('%Y-%m-%d')
 
   # import calls info from HQDBSQLPRD02
-  cnxn = pyodbc.connect('DSN=hqdbsqlprd02;uid=sasvc-DDSG;pwd=:iLIioXrsd')
+  cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER=PGESQLFIDC01\MSSQLSERVEREQ;uid=sasvc-DDSG;pwd=:iLIioXrsd')
   
   phonedb = cnxn.cursor()
   
@@ -35,31 +35,16 @@ def main(day_to_run):
   # import customer service calls
   list_df = []
   for i in np.arange(1, 6):
-      fpath = '/mnt/callratings/daily_scores/'+str(day_to_run)+'/cs0'+str(i)+'.csv'
+      fpath = '/mnt/callratings/daily_scores/'+str(day_to_run)+'/server0'+str(i)+'.csv'
       if(os.path.exists(fpath)): 
-          df = pd.read_csv(fpath, names=['id', 'quality', 'lenth', 'quote'])
+          df = pd.read_csv(fpath)
           list_df.append(df)
 
   data = pd.concat(list_df, ignore_index=False)
-  cs = data.copy()
   
-  # import sales calls
-  list_df = []
-  for i in np.arange(1, 6):
-      fpath = '/mnt/callratings/daily_scores/'+str(day_to_run)+'/sale0'+str(i)+'.csv'
-      if(os.path.exists(fpath)):
-          df = pd.read_csv(fpath, names=['id', 'quality', 'lenth', 'quote'])
-          list_df.append(df)
-  data = pd.concat(list_df, ignore_index=False)
-  sale = data.copy()
-  
-  cs['id'] = cs['id'].astype('str')
-  sale['id'] = sale['id'].astype('str')
+  data['id'] = data['id'].astype('str')
   info['CallId'] = info['CallId'].astype('str')
   info['RecordingId'] = info['RecordingId'].astype('str')
-
-  temp = pd.concat((cs, sale), axis=1).iloc[:, np.r_[0, 1, 5]]
-  temp.columns = ['id', 'cs_score', 'sale_score']
 
   # Genesys recording id always takes this format.
   recordingid_regex = r'[1-5]-([a-zA-Z0-9]{8,8}-[a-zA-Z0-9]{4,4}-[a-zA-Z0-9]{4,4}-[a-zA-Z0-9]{4,4}-[a-zA-Z0-9]{12,12})'   
@@ -69,14 +54,14 @@ def main(day_to_run):
   # consistent for certain machines. This code used to assume that file names
   # took the form [InteractionId]_[Department].opus This was not always the case.
   # Some machines export the call files to [RecordingId].opus
-  if check_for_rid.match(temp['id'].iloc[0]) is not None:
-    temp['id'] = temp['id'].apply(lambda x: check_for_rid.match(x).group(1).upper())   
+  if check_for_rid.match(data['id'].iloc[0]) is not None:
+    data['id'] = data['id'].apply(lambda x: check_for_rid.match(x).group(1).upper())   
     merge_var = 'RecordingId'
   else:
     merge_var = 'CallId'
-    temp['id'] = temp['id'].apply(lambda x: x.split('-')[1].split('_')[0])
+    # data['id'] = data['id'].apply(lambda x: x.split('-')[1].split('_')[0])
 
-  res = temp.merge(info, how='left', left_on='id', right_on=merge_var)
+  res = data.merge(info, how='left', left_on='id', right_on=merge_var)
   
   # This line is a hacky fix to deal with inconsistent file names. The old joins broke if the 
   # opus files has a recordingid in the filename and not the interaction id.
@@ -84,33 +69,22 @@ def main(day_to_run):
 
   res.drop('CallId', axis=1, inplace=True)
   res.drop('RecordingId',axis=1,inplace=True)
- 
   res = res.dropna()
+  res['DateTime'] = pd.to_datetime(res['InitiatedDateTimeGMT'])
+
+  # res.columns = ['Interaction ID', 'CS_Score', 'Sale_Score', 'DateTime', 'Type', 'Local User', 'Local Name', 'Score']
+  # res2 = res[['Interaction ID', 'DateTime', 'Type', 'Score', 'Local User', 'Local Name']]
   
-  def finalize_score(df):
-      if 'Sales' in df['AssignedWorkGroup']:
-          return df['sale_score']
-      else:
-          return df['cs_score']
   
-  res['score'] = res.apply(finalize_score, axis=1)
-  
-  res.columns = ['Interaction ID', 'CS_Score', 'Sale_Score', 'DateTime', 'Type', 'Local User', 'Local Name', 'Score']
-  res2 = res[['Interaction ID', 'DateTime', 'Type', 'Score', 'Local User', 'Local Name']]
-  
-  s = MinMaxScaler()
-  temp = s.fit_transform(res2[['Score']]).reshape(1, -1)[0]
-  res2['Score'] = temp
-  
-  res2['Interaction ID'] = res2['Type'] + '_' + res2['Interaction ID']
-  res2['DateTime'] = pd.to_datetime(res2['DateTime'])
+  # res2['Interaction ID'] = res2['Type'] + '_' + res2['Interaction ID']
+  # res2['DateTime'] = pd.to_datetime(res2['DateTime'])
   
   d = day_to_run
   filename = "/mnt/callratings/upload_to_onedrive/Call_" + str(d.month).zfill(2) + str(d.day).zfill(2) + ".csv"
-  res2.to_csv(filename, index=False,encoding="utf-8")
+  res.to_csv(filename, index=False,encoding="utf-8")
   
   upload_name = "/mnt/callratings/testmnt/Call_" + str(d.month).zfill(2) + str(d.day).zfill(2) + ".csv"
-  res2.to_csv(upload_name, index=False, encoding="utf-8")
+  res.to_csv(upload_name, index=False, encoding="utf-8")
 
 
 if __name__ == "__main__":

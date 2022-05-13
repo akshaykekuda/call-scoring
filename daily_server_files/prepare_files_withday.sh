@@ -43,11 +43,19 @@ yes | cp -rf $BASEDIR/Sales/$read_date/*.opus $BASEDIR/run/$folder_date/
 
 # Rename each file so that they can be assigned to a server
 $BASEDIR/rename.sh $BASEDIR/run/$folder_date/
-$BASEDIR/random.sh $BASEDIR/run/$folder_date/
+# $BASEDIR/random.sh $BASEDIR/run/$folder_date/
 
 # Move the opus files to the locations.
-mv $BASEDIR/run/$folder_date/1-*.opus $BASEDIR/run/$folder_date/test01/
-mv $BASEDIR/run/$folder_date/2-*.opus $BASEDIR/run/$folder_date/test02/
-mv $BASEDIR/run/$folder_date/3-*.opus $BASEDIR/run/$folder_date/test03/
-mv $BASEDIR/run/$folder_date/4-*.opus $BASEDIR/run/$folder_date/test04/
-mv $BASEDIR/run/$folder_date/5-*.opus $BASEDIR/run/$folder_date/test05/
+count=1
+for file in $BASEDIR/run/$folder_date/*.opus; do
+    mv $file $BASEDIR/run/$folder_date/test0"$count"/
+    count=$((count+1))
+    if [ $count -eq 6 ];then
+        count=1
+    fi
+done
+# mv $BASEDIR/run/$folder_date/1-*.opus $BASEDIR/run/$folder_date/test01/
+# mv $BASEDIR/run/$folder_date/2-*.opus $BASEDIR/run/$folder_date/test02/
+# mv $BASEDIR/run/$folder_date/3-*.opus $BASEDIR/run/$folder_date/test03/
+# mv $BASEDIR/run/$folder_date/4-*.opus $BASEDIR/run/$folder_date/test04/
+# mv $BASEDIR/run/$folder_date/5-*.opus $BASEDIR/run/$folder_date/test05/

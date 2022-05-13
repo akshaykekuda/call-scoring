@@ -102,10 +102,11 @@ class InferenceCallDataSet(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
-
-        text = self.df.iloc[idx]['text']
-        id = self.df.iloc[idx]['id']
-        sample = {'text': text, 'id': id}
+        point = self.df.iloc[idx]
+        text = point['text']
+        id = point['id']
+        workgroup = point['workgroup']
+        sample = {'text': text, 'id': id, 'workgroup': workgroup}
         return sample
 
 

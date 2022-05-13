@@ -111,15 +111,25 @@ def prepare_inference_df(transcripts_dir):
     df = pd.DataFrame()
     ids = []
     text_arr = []
+    workgroup_arr=[]
     for file in os.listdir(transcripts_dir):
         if file.endswith('.txt'):
             file_loc = transcripts_dir + file
-            id = re.split("_|-|\.", file)[1]
+            parts = re.split("_|-|\.", file)
+            for part in parts:
+                if any(char.isdigit() for char in part):
+                    id = part
+                if 'Sale' in part or 'Customer' in part:
+                    workgroup = part
             clean_text = preprocess_transcript(file_loc)
+            if len(clean_text) == 0:
+                continue           
             ids.append(id)
             text_arr.append(clean_text)
+            workgroup_arr.append(workgroup)
     df['id'] = ids
     df['text'] = text_arr
+    df['workgroup'] = workgroup_arr
     print("Number of Test Calls = {}".format(len(df)))
     return df
 
