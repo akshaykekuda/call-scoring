@@ -39,6 +39,10 @@ def main(day_to_run):
       if(os.path.exists(fpath)): 
           df = pd.read_csv(fpath)
           list_df.append(df)
+  
+  if len(list_df)==0:
+    raise Exception("No daily score files found")
+    return
 
   data = pd.concat(list_df, ignore_index=False)
   
