@@ -62,7 +62,12 @@ rm -f "$wavpath"*.opus
 
 #split wav file into customer and csr channel
 
-python split_arrange.py $wavpath
+cd /mnt/transcriber/miniconda3/
+source bin/activate call_scoring
+
+script_dir=/mnt/transcriber/Call_Scoring/
+cd $script_dir
+python daily_server_files/split_arrange.py $wavpath
 
 # call batch.sh on each directory
 # 16 directories because 16 cores
@@ -102,12 +107,11 @@ sudo find $build_output -type f -exec mv {} $csr_destination \;
 mkdir -p /mnt/callratings/daily_scores/"$filedate"/
 
 # call score
-source activate call_scoring
 
-parent_dir=$(cd ../ && pwd)
+# parent_dir=$(cd ../ && pwd)
 
-PYTHONPATH=$parent_dir python transcripts_to_score.py --csr_path $csr_destination --customer_path $customer_destination --model_path $model_path --vocab_path $vocab_path \
---out_path $output  
+PYTHONPATH=$script_dir python daily_server_files/transcripts_to_score.py --csr_path $csr_destination \
+--customer_path $customer_destination --model_path $model_path --vocab_path $vocab_path --out_path $output  
 
 # At this point, the wav files are no longer needed and can be deleted.
 #This command has been commented out for now.
