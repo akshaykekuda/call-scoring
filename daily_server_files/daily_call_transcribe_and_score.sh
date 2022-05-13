@@ -61,8 +61,15 @@ done
 rm -f "$wavpath"*.opus
 
 #split wav file into customer and csr channel
+if [ $server_num -eq 1 ] || [ $server_num -eq 4 ] || [ $server_num -eq 5 ]; then
+    cd /home/kekuak/anaconda3/
+else
+    cd /home/kekuak/miniconda3/
+fi
+# my_conda can be /home/kekuak/anaconda3/ or /home/kekuak/miniconda3/
 
-cd /mnt/transcriber/miniconda3/
+# echo "Here is my conda path:"$my_conda
+# cd $my_conda 
 source bin/activate call_scoring
 
 script_dir=/mnt/transcriber/Call_Scoring/
