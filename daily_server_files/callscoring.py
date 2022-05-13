@@ -75,6 +75,7 @@ def main(day_to_run):
   res.drop('RecordingId',axis=1,inplace=True)
   res = res.dropna()
   res['DateTime'] = pd.to_datetime(res['InitiatedDateTimeGMT'])
+  res  = res.drop(['InitiatedDateTimeGMT'], axis=1)
 
   # res.columns = ['Interaction ID', 'CS_Score', 'Sale_Score', 'DateTime', 'Type', 'Local User', 'Local Name', 'Score']
   # res2 = res[['Interaction ID', 'DateTime', 'Type', 'Score', 'Local User', 'Local Name']]
